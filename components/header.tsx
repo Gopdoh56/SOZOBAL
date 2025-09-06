@@ -61,12 +61,12 @@ export function Navigation() {
               msOverflowStyle: 'none'
             }}
           >
-            <div className="flex space-x-6 px-2 py-2 min-w-max">
+            <div className="flex space-x-4 px-2 py-2 min-w-max">
               {filteredNavItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="text-foreground hover:text-accent transition-colors font-medium whitespace-nowrap text-sm px-3 py-2 rounded-lg hover:bg-accent/10 flex-shrink-0"
+                  className="text-foreground hover:text-accent transition-colors font-medium whitespace-nowrap text-sm px-4 py-2 rounded-full hover:bg-accent/10 flex-shrink-0 border border-border/50"
                 >
                   {item.label}
                 </Link>
