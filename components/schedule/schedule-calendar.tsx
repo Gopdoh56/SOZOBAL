@@ -1,96 +1,167 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { ScheduleGameCard } from "./schedule-game-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { createClient } from "@/lib/supabase/client"
+import { Loader2 } from "lucide-react"
 
-export function ScheduleCalendar() {
-  const scheduleData = [
-    {
-      date: "March 16, 2024",
-      dayOfWeek: "Saturday",
-      games: [
-        {
-          id: 1,
-          homeTeam: "DCE ",
-          awayTeam: "COBBE jnrs",
-          time: "8:30 PM ET",
-          venue: "DCE",
-          isFeatured: true,
-          ticketsAvailable: true,
-        },
-        {
-          id: 2,
-          homeTeam: "COBBE MEN",
-          awayTeam: "CHANGALUME",
-          time: "10:00 PM ET",
-          venue: "DCE",
-          isFeatured: false,
-          ticketsAvailable: true,
-        },
-      ],
-    },
-    {
-      date: "March 17, 2024",
-      dayOfWeek: "Sunday",
-      games: [
-        {
-          id: 3,
-          homeTeam: "MCA ",
-          awayTeam: "UNIMA HAWKS",
-          time: "7:00 PM ET",
-          venue: "TD Garden",
-          isFeatured: true,
-          ticketsAvailable: false,
-        },
-        {
-          id: 4,
-          homeTeam: "BASKEBALL INSIGHT",
-          awayTeam: "NEXT GEN",
-          time: "8:00 PM ET",
-          venue: "DCE",
-          isFeatured: false,
-          ticketsAvailable: true,
-        },
-      ],
-    },
-    {
-      date: "March 18, 2024",
-      dayOfWeek: "Monday",
-      games: [
-        {
-          id: 5,
-          homeTeam: "MAGANG'A VETS",
-          awayTeam: "FDH VETS",
-          time: "8:00 PM ET",
-          venue: "DCE",
-          isFeatured: false,
-          ticketsAvailable: true,
-        },
-      ],
-    },
-    {
-      date: "March 19, 2024",
-      dayOfWeek: "Tuesday",
-      games: [
-        {
-          id: 6,
-          homeTeam: "KUKOMA EAGLES",
-          awayTeam: "CDH LADIE",
-          time: "9:00 PM ET",
-          venue: "BYC",
-          isFeatured: true,
-          ticketsAvailable: false,
-        },
-        {
-          id: 7,
-          homeTeam: "FDH BRICKS jnrs",
-          awayTeam: "CRAZY WORRIORS U23",
-          time: "7:30 PM ET",
-          venue: "BYC",
-          isFeatured: true,
-          ticketsAvailable: false,
-        },
-      ],
-    },
-  ]
+interface Match {
+  id: string
+  match_date: string
+  home_team: { name: string; logo_url: string }
+  away_team: { name: string; logo_url: string }
+  venue: { name: string }
+  status: string
+}
+
+interface Game {
+  id: string
+  homeTeam: string
+  awayTeam: string
+  homeTeamLogo: string
+  awayTeamLogo: string
+  time: string
+  venue: string
+  isFeatured: boolean
+  ticketsAvailable: boolean
+}
+
+interface ScheduleDay {
+  date: string
+  dayOfWeek: string
+  games: Game[]
+}
+
+interface ScheduleCalendarProps {
+  filters: {
+    viewMode: string
+    team: string
+    month: string
+  }
+}
+
+export function ScheduleCalendar({ filters }: ScheduleCalendarProps) {
+  const [scheduleData, setScheduleData] = useState<ScheduleDay[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadMatches()
+  }, [filters])
+
+  const loadMatches = async () => {
+    setLoading(true)
+    const supabase = createClient()
+
+    let query = supabase
+      .from('matches')
+      .select(`
+        id,
+        match_date,
+        status,
+        home_team:teams!matches_home_team_id_fkey(name, logo_url),
+        away_team:teams!matches_away_team_id_fkey(name, logo_url),
+        venue:venues(name)
+      `)
+      .order('match_date', { ascending: true })
+
+    // Filter by team if selected
+    if (filters.team && filters.team !== 'all') {
+      query = query.or(`home_team_id.eq.${filters.team},away_team_id.eq.${filters.team}`)
+    }
+
+    // Filter by month if selected
+    if (filters.month && filters.month !== 'all') {
+      const [year, month] = filters.month.split('-')
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1)
+      const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59)
+      
+      query = query
+        .gte('match_date', startDate.toISOString())
+        .lte('match_date', endDate.toISOString())
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('Error loading matches:', error)
+      setLoading(false)
+      return
+    }
+
+    if (data) {
+      // Group matches by date
+      const grouped = groupMatchesByDate(data as Match[])
+      setScheduleData(grouped)
+    }
+
+    setLoading(false)
+  }
+
+  const groupMatchesByDate = (matches: Match[]): ScheduleDay[] => {
+    const grouped = new Map<string, Game[]>()
+
+    matches.forEach((match) => {
+      const matchDate = new Date(match.match_date)
+      const dateKey = matchDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+
+      const game: Game = {
+        id: match.id,
+        homeTeam: match.home_team?.name || 'TBD',
+        awayTeam: match.away_team?.name || 'TBD',
+        homeTeamLogo: match.home_team?.logo_url || '',
+        awayTeamLogo: match.away_team?.logo_url || '',
+        time: matchDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        }),
+        venue: match.venue?.name || 'TBD',
+        isFeatured: match.status === 'live', // Featured if live
+        ticketsAvailable: match.status === 'scheduled', // Tickets available if scheduled
+      }
+
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, [])
+      }
+      grouped.get(dateKey)!.push(game)
+    })
+
+    // Convert to array format
+    const result: ScheduleDay[] = []
+    grouped.forEach((games, dateStr) => {
+      const date = new Date(games[0].id ? new Date(matches.find(m => m.id === games[0].id)?.match_date || '') : new Date())
+      result.push({
+        date: dateStr,
+        dayOfWeek: date.toLocaleDateString('en-US', { weekday: 'long' }),
+        games,
+      })
+    })
+
+    return result
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (scheduleData.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-12 text-center">
+          <p className="text-muted-foreground text-lg">No matches scheduled for the selected filters.</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-8">

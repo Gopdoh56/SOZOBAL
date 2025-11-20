@@ -1,95 +1,163 @@
-import { TeamCard } from "./team-card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { MapPin, Users, Calendar, TrendingUp, TrendingDown } from "lucide-react"
+import Image from "next/image"
 
-export function TeamsGrid() {
-  const teams = [
-    {
-      id: 1,
-      name: "Lakers",
-      city: "Los Angeles",
-      logo: "/lakers-basketball-team-logo.png",
-      conference: "Western",
-      record: "45-20",
-      lastGame: { opponent: "Warriors", result: "W", score: "112-108" },
-      nextGame: { opponent: "Clippers", date: "Mar 16", time: "8:30 PM" },
-      keyPlayers: ["LeBron James", "Anthony Davis", "Russell Westbrook"],
-      coach: "Darvin Ham",
-      arena: "Crypto.com Arena",
-    },
-    {
-      id: 2,
-      name: "Warriors",
-      city: "Golden State",
-      logo: "/warriors-basketball-team-logo.png",
-      conference: "Western",
-      record: "42-23",
-      lastGame: { opponent: "Lakers", result: "L", score: "108-112" },
-      nextGame: { opponent: "Kings", date: "Mar 16", time: "10:00 PM" },
-      keyPlayers: ["Stephen Curry", "Klay Thompson", "Draymond Green"],
-      coach: "Steve Kerr",
-      arena: "Chase Center",
-    },
-    {
-      id: 3,
-      name: "Celtics",
-      city: "Boston",
-      logo: "/celtics-basketball-team-logo.png",
-      conference: "Eastern",
-      record: "48-17",
-      lastGame: { opponent: "Heat", result: "W", score: "95-89" },
-      nextGame: { opponent: "76ers", date: "Mar 17", time: "7:00 PM" },
-      keyPlayers: ["Jayson Tatum", "Jaylen Brown", "Marcus Smart"],
-      coach: "Joe Mazzulla",
-      arena: "TD Garden",
-    },
-    {
-      id: 4,
-      name: "Heat",
-      city: "Miami",
-      logo: "/heat-basketball-team-logo.jpg",
-      conference: "Eastern",
-      record: "38-27",
-      lastGame: { opponent: "Celtics", result: "L", score: "89-95" },
-      nextGame: { opponent: "Magic", date: "Mar 17", time: "8:00 PM" },
-      keyPlayers: ["Jimmy Butler", "Bam Adebayo", "Tyler Herro"],
-      coach: "Erik Spoelstra",
-      arena: "FTX Arena",
-    },
-    {
-      id: 5,
-      name: "Bulls",
-      city: "Chicago",
-      logo: "/bulls-basketball-team-logo.png",
-      conference: "Eastern",
-      record: "32-33",
-      lastGame: { opponent: "Pistons", result: "W", score: "105-98" },
-      nextGame: { opponent: "Nets", date: "Mar 18", time: "8:00 PM" },
-      keyPlayers: ["DeMar DeRozan", "Zach LaVine", "Nikola Vucevic"],
-      coach: "Billy Donovan",
-      arena: "United Center",
-    },
-    {
-      id: 6,
-      name: "Nets",
-      city: "Brooklyn",
-      logo: "/nets-basketball-team-logo.jpg",
-      conference: "Eastern",
-      record: "28-37",
-      lastGame: { opponent: "Knicks", result: "L", score: "102-108" },
-      nextGame: { opponent: "Bulls", date: "Mar 18", time: "8:00 PM" },
-      keyPlayers: ["Mikal Bridges", "Nic Claxton", "Cam Johnson"],
-      coach: "Jacque Vaughn",
-      arena: "Barclays Center",
-    },
-  ]
+interface Team {
+  id: number
+  name: string
+  city: string
+  logo: string
+  conference: string
+  record: string
+  lastGame: {
+    opponent: string
+    result: string
+    score: string
+  }
+  nextGame: {
+    opponent: string
+    date: string
+    time: string
+  }
+  keyPlayers: string[]
+  coach: string
+  arena: string
+}
+
+interface TeamCardProps {
+  team: Team
+}
+
+export function TeamCard({ team }: TeamCardProps) {
+  const isWin = team.lastGame.result === "W"
+  const hasLastGame = team.lastGame.opponent !== 'N/A'
+  const hasNextGame = team.nextGame.opponent !== 'N/A'
+
+  const getTeamInitial = (teamName: string) => {
+    return teamName.charAt(0).toUpperCase()
+  }
 
   return (
-    <section>
-      <h2 className="text-2xl font-bold text-foreground mb-6">All Teams</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {teams.map((team) => (
-          <TeamCard key={team.id} team={team} />
-        ))}
-      </div>
-    </section>
+    <Card className="hover:shadow-lg transition-all duration-200">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {team.logo ? (
+              <Image
+                src={team.logo}
+                alt={`${team.name} logo`}
+                width={48}
+                height={48}
+                className="rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <span className="text-orange-600 font-bold text-xl">
+                  {getTeamInitial(team.name)}
+                </span>
+              </div>
+            )}
+            <div>
+              <h3 className="text-xl font-bold text-foreground">
+                {team.city ? `${team.city} ` : ''}{team.name}
+              </h3>
+              <p className="text-sm text-muted-foreground">{team.conference}</p>
+            </div>
+          </div>
+          <Badge className="bg-accent text-accent-foreground">{team.record}</Badge>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Last Game */}
+        {hasLastGame ? (
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-2">
+              {isWin ? (
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-red-600" />
+              )}
+              <span className="text-sm font-medium">Last Game</span>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-medium text-foreground">
+                {isWin ? "W" : "L"} vs {team.lastGame.opponent}
+              </div>
+              <div className="text-xs text-muted-foreground">{team.lastGame.score}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center p-3 bg-muted/50 rounded-lg">
+            <span className="text-sm text-muted-foreground">No recent games</span>
+          </div>
+        )}
+
+        {/* Next Game */}
+        {hasNextGame ? (
+          <div className="flex items-center justify-between p-3 bg-accent/10 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-accent" />
+              <span className="text-sm font-medium">Next Game</span>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-medium text-foreground">vs {team.nextGame.opponent}</div>
+              <div className="text-xs text-muted-foreground">
+                {team.nextGame.date} • {team.nextGame.time}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center p-3 bg-accent/10 rounded-lg">
+            <span className="text-sm text-muted-foreground">No upcoming games</span>
+          </div>
+        )}
+
+        {/* Key Players */}
+        {team.keyPlayers.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Key Players</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {team.keyPlayers.slice(0, 3).map((player, index) => (
+                <Badge key={index} variant="outline" className="text-xs">
+                  {player}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Team Info */}
+        <div className="space-y-2 text-sm text-muted-foreground">
+          {team.arena && (
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              <span>{team.arena}</span>
+            </div>
+          )}
+          {team.coach && team.coach !== 'TBD' && (
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>Coach: {team.coach}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-2">
+          <Button size="sm" className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground">
+            View Roster
+          </Button>
+          <Button size="sm" variant="outline" className="flex-1 bg-transparent">
+            Team Stats
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

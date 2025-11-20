@@ -1,8 +1,9 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { MapPin, Users, Calendar, TrendingUp, TrendingDown } from "lucide-react"
-import Image from "next/image"
+"use client"
+
+import { useEffect, useState } from "react"
+import { TeamCard } from "./team-card"
+import { createClient } from "@/lib/supabase/client"
+import { Loader2 } from "lucide-react"
 
 interface Team {
   id: number
@@ -26,106 +27,180 @@ interface Team {
   arena: string
 }
 
-interface TeamCardProps {
-  team: Team
-}
+export function TeamsGrid() {
+  const [teams, setTeams] = useState<Team[]>([])
+  const [loading, setLoading] = useState(true)
 
-export function TeamCard({ team }: TeamCardProps) {
-  const isWin = team.lastGame.result === "W"
+  useEffect(() => {
+    loadTeams()
+  }, [])
+
+  const loadTeams = async () => {
+    const supabase = createClient()
+
+    // Load teams with their division info
+    const { data: teamsData, error } = await supabase
+      .from('teams')
+      .select(`
+        id,
+        name,
+        home_city,
+        logo_url,
+        wins,
+        losses,
+        coach_name,
+        division:divisions(name)
+      `)
+      .eq('is_active', true)
+      .order('name')
+
+    if (error) {
+      console.error('Error loading teams:', error)
+      setLoading(false)
+      return
+    }
+
+    if (!teamsData) {
+      setLoading(false)
+      return
+    }
+
+    // For each team, get their last and next match
+    const teamsWithMatches = await Promise.all(
+      teamsData.map(async (team) => {
+        // Get last completed match
+        const { data: lastMatch } = await supabase
+          .from('matches')
+          .select(`
+            home_score,
+            away_score,
+            home_team_id,
+            away_team_id,
+            home_team:teams!matches_home_team_id_fkey(name),
+            away_team:teams!matches_away_team_id_fkey(name)
+          `)
+          .eq('status', 'completed')
+          .or(`home_team_id.eq.${team.id},away_team_id.eq.${team.id}`)
+          .order('match_date', { ascending: false })
+          .limit(1)
+          .single()
+
+        // Get next scheduled match
+        const { data: nextMatch } = await supabase
+          .from('matches')
+          .select(`
+            match_date,
+            home_team_id,
+            away_team_id,
+            home_team:teams!matches_home_team_id_fkey(name),
+            away_team:teams!matches_away_team_id_fkey(name)
+          `)
+          .eq('status', 'scheduled')
+          .or(`home_team_id.eq.${team.id},away_team_id.eq.${team.id}`)
+          .order('match_date', { ascending: true })
+          .limit(1)
+          .single()
+
+        // Process last game
+        let lastGame = {
+          opponent: 'N/A',
+          result: 'N/A',
+          score: 'N/A'
+        }
+
+        if (lastMatch) {
+          const isHome = lastMatch.home_team_id === team.id
+          const opponent = isHome ? lastMatch.away_team?.name : lastMatch.home_team?.name
+          const teamScore = isHome ? lastMatch.home_score : lastMatch.away_score
+          const opponentScore = isHome ? lastMatch.away_score : lastMatch.home_score
+          const result = teamScore > opponentScore ? 'W' : 'L'
+
+          lastGame = {
+            opponent: opponent || 'Unknown',
+            result,
+            score: `${teamScore}-${opponentScore}`
+          }
+        }
+
+        // Process next game
+        let nextGame = {
+          opponent: 'N/A',
+          date: 'TBD',
+          time: 'TBD'
+        }
+
+        if (nextMatch) {
+          const isHome = nextMatch.home_team_id === team.id
+          const opponent = isHome ? nextMatch.away_team?.name : nextMatch.home_team?.name
+          const matchDate = new Date(nextMatch.match_date)
+
+          nextGame = {
+            opponent: opponent || 'Unknown',
+            date: matchDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            time: matchDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          }
+        }
+
+        // Get top players for this team
+        const { data: players } = await supabase
+          .from('players')
+          .select('first_name, last_name')
+          .eq('team_id', team.id)
+          .eq('is_active', true)
+          .limit(3)
+
+        const keyPlayers = players?.map(p => `${p.first_name} ${p.last_name}`) || []
+
+        return {
+          id: parseInt(team.id),
+          name: team.name,
+          city: team.home_city || '',
+          logo: team.logo_url || '',
+          conference: team.division?.name || 'Unknown Division',
+          record: `${team.wins}-${team.losses}`,
+          lastGame,
+          nextGame,
+          keyPlayers,
+          coach: team.coach_name || 'TBD',
+          arena: team.home_city || 'Home Arena'
+        }
+      })
+    )
+
+    setTeams(teamsWithMatches)
+    setLoading(false)
+  }
+
+  if (loading) {
+    return (
+      <section>
+        <h2 className="text-2xl font-bold text-foreground mb-6">All Teams</h2>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </section>
+    )
+  }
+
+  if (teams.length === 0) {
+    return (
+      <section>
+        <h2 className="text-2xl font-bold text-foreground mb-6">All Teams</h2>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No teams found.</p>
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-200">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Image
-              src={team.logo || "/placeholder.svg"}
-              alt={`${team.name} logo`}
-              width={48}
-              height={48}
-              className="rounded-full"
-            />
-            <div>
-              <h3 className="text-xl font-bold text-foreground">
-                {team.city} {team.name}
-              </h3>
-              <p className="text-sm text-muted-foreground">{team.conference} Conference</p>
-            </div>
-          </div>
-          <Badge className="bg-accent text-accent-foreground">{team.record}</Badge>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* Last Game */}
-        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-2">
-            {isWin ? (
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-red-600" />
-            )}
-            <span className="text-sm font-medium">Last Game</span>
-          </div>
-          <div className="text-right">
-            <div className="text-sm font-medium text-foreground">
-              {isWin ? "W" : "L"} vs {team.lastGame.opponent}
-            </div>
-            <div className="text-xs text-muted-foreground">{team.lastGame.score}</div>
-          </div>
-        </div>
-
-        {/* Next Game */}
-        <div className="flex items-center justify-between p-3 bg-accent/10 rounded-lg">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-accent" />
-            <span className="text-sm font-medium">Next Game</span>
-          </div>
-          <div className="text-right">
-            <div className="text-sm font-medium text-foreground">vs {team.nextGame.opponent}</div>
-            <div className="text-xs text-muted-foreground">
-              {team.nextGame.date} • {team.nextGame.time}
-            </div>
-          </div>
-        </div>
-
-        {/* Key Players */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">Key Players</span>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {team.keyPlayers.slice(0, 3).map((player, index) => (
-              <Badge key={index} variant="outline" className="text-xs">
-                {player}
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        {/* Team Info */}
-        <div className="space-y-2 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            <span>{team.arena}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span>Coach: {team.coach}</span>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2 pt-2">
-          <Button size="sm" className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground">
-            View Roster
-          </Button>
-          <Button size="sm" variant="outline" className="flex-1 bg-transparent">
-            Team Stats
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <section>
+      <h2 className="text-2xl font-bold text-foreground mb-6">All Teams</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {teams.map((team) => (
+          <TeamCard key={team.id} team={team} />
+        ))}
+      </div>
+    </section>
   )
 }

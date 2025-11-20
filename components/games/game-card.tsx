@@ -42,6 +42,10 @@ export function GameCard({ game }: GameCardProps) {
     }
   }
 
+  const getTeamInitial = (teamName: string) => {
+    return teamName.charAt(0).toUpperCase()
+  }
+
   const isLive = game.status === "Live"
   const isUpcoming = game.status === "Upcoming"
   const isFinal = game.status === "Final"
@@ -67,13 +71,21 @@ export function GameCard({ game }: GameCardProps) {
           {/* Away Team */}
           <div className="flex items-center justify-between md:justify-start gap-4">
             <div className="flex items-center gap-3">
-              <Image
-                src={game.awayTeam.logo || "/placeholder.svg"}
-                alt={`${game.awayTeam.name} logo`}
-                width={40}
-                height={40}
-                className="rounded-full"
-              />
+              {game.awayTeam.logo ? (
+                <Image
+                  src={game.awayTeam.logo}
+                  alt={`${game.awayTeam.name} logo`}
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <span className="text-orange-600 font-bold">
+                    {getTeamInitial(game.awayTeam.name)}
+                  </span>
+                </div>
+              )}
               <div>
                 <div className="font-semibold text-foreground">{game.awayTeam.name}</div>
                 <div className="text-sm text-muted-foreground">{game.awayTeam.record}</div>
@@ -99,13 +111,21 @@ export function GameCard({ game }: GameCardProps) {
                 <div className="font-semibold text-foreground">{game.homeTeam.name}</div>
                 <div className="text-sm text-muted-foreground">{game.homeTeam.record}</div>
               </div>
-              <Image
-                src={game.homeTeam.logo || "/placeholder.svg"}
-                alt={`${game.homeTeam.name} logo`}
-                width={40}
-                height={40}
-                className="rounded-full"
-              />
+              {game.homeTeam.logo ? (
+                <Image
+                  src={game.homeTeam.logo}
+                  alt={`${game.homeTeam.name} logo`}
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <span className="text-orange-600 font-bold">
+                    {getTeamInitial(game.homeTeam.name)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

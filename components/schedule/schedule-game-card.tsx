@@ -5,9 +5,11 @@ import { Clock, MapPin, Star, Ticket } from "lucide-react"
 import Image from "next/image"
 
 interface Game {
-  id: number
+  id: string
   homeTeam: string
   awayTeam: string
+  homeTeamLogo?: string
+  awayTeamLogo?: string
   time: string
   venue: string
   isFeatured: boolean
@@ -19,24 +21,8 @@ interface ScheduleGameCardProps {
 }
 
 export function ScheduleGameCard({ game }: ScheduleGameCardProps) {
-  const getTeamLogo = (teamName: string) => {
-    const logoMap: { [key: string]: string } = {
-      Lakers: "/lakers-basketball-team-logo.png",
-      Warriors: "/warriors-basketball-team-logo.png",
-      Celtics: "/celtics-basketball-team-logo.png",
-      Heat: "/heat-basketball-team-logo.jpg",
-      Bulls: "/bulls-basketball-team-logo.png",
-      Nets: "/nets-basketball-team-logo.jpg",
-      Nuggets: "/nuggets-basketball-team-logo.jpg",
-      Clippers: "/clippers-basketball-team-logo.jpg",
-      Kings: "/kings-basketball-team-logo.jpg",
-      "76ers": "/76ers-basketball-team-logo.jpg",
-      Magic: "/magic-basketball-team-logo.jpg",
-      Pistons: "/pistons-basketball-team-logo.jpg",
-      Timberwolves: "/timberwolves-basketball-team-logo.jpg",
-      Knicks: "/knicks-basketball-team-logo.jpg",
-    }
-    return logoMap[teamName] || "/abstract-basketball-logo.png"
+  const getTeamInitial = (teamName: string) => {
+    return teamName.charAt(0).toUpperCase()
   }
 
   return (
@@ -47,13 +33,19 @@ export function ScheduleGameCard({ game }: ScheduleGameCardProps) {
           <div className="flex items-center gap-6 flex-1">
             {/* Away Team */}
             <div className="flex items-center gap-3">
-              <Image
-                src={getTeamLogo(game.awayTeam) || "/placeholder.svg"}
-                alt={`${game.awayTeam} logo`}
-                width={40}
-                height={40}
-                className="rounded-full"
-              />
+              {game.awayTeamLogo ? (
+                <Image
+                  src={game.awayTeamLogo}
+                  alt={`${game.awayTeam} logo`}
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <span className="text-orange-600 font-bold">{getTeamInitial(game.awayTeam)}</span>
+                </div>
+              )}
               <span className="font-semibold text-foreground">{game.awayTeam}</span>
             </div>
 
@@ -61,13 +53,19 @@ export function ScheduleGameCard({ game }: ScheduleGameCardProps) {
 
             {/* Home Team */}
             <div className="flex items-center gap-3">
-              <Image
-                src={getTeamLogo(game.homeTeam) || "/placeholder.svg"}
-                alt={`${game.homeTeam} logo`}
-                width={40}
-                height={40}
-                className="rounded-full"
-              />
+              {game.homeTeamLogo ? (
+                <Image
+                  src={game.homeTeamLogo}
+                  alt={`${game.homeTeam} logo`}
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <span className="text-orange-600 font-bold">{getTeamInitial(game.homeTeam)}</span>
+                </div>
+              )}
               <span className="font-semibold text-foreground">{game.homeTeam}</span>
             </div>
           </div>
@@ -90,7 +88,7 @@ export function ScheduleGameCard({ game }: ScheduleGameCardProps) {
               {game.isFeatured && (
                 <Badge className="bg-accent text-accent-foreground">
                   <Star className="h-3 w-3 mr-1" />
-                  Featured
+                  Live
                 </Badge>
               )}
 

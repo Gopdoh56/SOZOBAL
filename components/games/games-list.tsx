@@ -1,98 +1,169 @@
-import { GameCard } from "./game-card"
+"use client"
 
-export function GamesList() {
-  const games = [
-    {
-      id: 1,
-      homeTeam: {
-        name: "CRAZY WORRIORS",
-        logo: "/lakers-basketball-team-logo.png",
-        record: "45-20",
-      },
-      awayTeam: {
-        name: "MIKOKO",
-        logo: "/warriors-basketball-team-logo.png",
-        record: "42-23",
-      },
-      homeScore: 108,
-      awayScore: 112,
-      status: "Final",
-      quarter: "Final",
-      date: "March 15, 2024",
-      time: "7:30 PM ET",
-      venue: "BYC",
-      highlights: ["Ant1: 35 PTS", "Dan: 28 PTS, 12 AST"],
-    },
-    {
-      id: 2,
-      homeTeam: {
-        name: "CDHIB",
-        logo: "/celtics-basketball-team-logo.png",
-        record: "48-17",
-      },
-      awayTeam: {
-        name: "LOX 360",
-        logo: "/heat-basketball-team-logo.jpg",
-        record: "38-27",
-      },
-      homeScore: 95,
-      awayScore: 89,
-      status: "Live",
-      quarter: "3rd - 8:42",
-      date: "March 15, 2024",
-      time: "8:00 PM ET",
-      venue: "BYC",
-      highlights: ["Chiku: 24 PTS", "Butler: 18 PTS"],
-    },
-    {
-      id: 3,
-      homeTeam: {
-        name: "MUBAS WILDCATS",
-        logo: "/bulls-basketball-team-logo.png",
-        record: "32-33",
-      },
-      awayTeam: {
-        name: "MUST GOLIRAS",
-        logo: "/nets-basketball-team-logo.jpg",
-        record: "28-37",
-      },
-      homeScore: 0,
-      awayScore: 0,
-      status: "Upcoming",
-      quarter: "8:00 PM ET",
-      date: "March 15, 2024",
-      time: "8:00 PM ET",
-      venue: "COM",
-      highlights: [],
-    },
-    {
-      id: 4,
-      homeTeam: {
-        name: "MAGANG'A U23",
-        logo: "/nuggets-basketball-team-logo.jpg",
-        record: "46-19",
-      },
-      awayTeam: {
-        name: "MUBAS U23",
-        logo: "/suns-basketball-team-logo.jpg",
-        record: "40-25",
-      },
-      homeScore: 124,
-      awayScore: 118,
-      status: "Final",
-      quarter: "Final - OT",
-      date: "March 14, 2024",
-      time: "9:00 PM ET",
-      venue: "Ball Arena",
-      highlights: ["Jokic: 32 PTS, 15 REB", "Booker: 29 PTS"],
-    },
-  ]
+import { useEffect, useState } from "react"
+import { GameCard } from "@/components/game-card"
+import { createClient } from "@/lib/supabase/client"
+import { Loader2 } from "lucide-react"
+
+interface Match {
+  id: string
+  match_date: string
+  status: string
+  home_score: number
+  away_score: number
+  round_number: number
+  home_team: {
+    name: string
+    logo_url: string
+    wins: number
+    losses: number
+  }
+  away_team: {
+    name: string
+    logo_url: string
+    wins: number
+    losses: number
+  }
+  venue: {
+    name: string
+  }
+}
+
+interface GamesListProps {
+  filter: string
+}
+
+export function GamesList({ filter }: GamesListProps) {
+  const [games, setGames] = useState<Match[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadGames()
+  }, [filter])
+
+  const loadGames = async () => {
+    setLoading(true)
+    const supabase = createClient()
+
+    let query = supabase
+      .from('matches')
+      .select(`
+        id,
+        match_date,
+        status,
+        home_score,
+        away_score,
+        round_number,
+        home_team:teams!matches_home_team_id_fkey(name, logo_url, wins, losses),
+        away_team:teams!matches_away_team_id_fkey(name, logo_url, wins, losses),
+        venue:venues(name)
+      `)
+      .order('match_date', { ascending: false })
+
+    // Apply filters
+    if (filter === 'live') {
+      query = query.eq('status', 'live')
+    } else if (filter === 'completed') {
+      query = query.eq('status', 'completed')
+    } else if (filter === 'upcoming') {
+      query = query.eq('status', 'scheduled')
+    } else if (filter === 'today') {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      
+      query = query
+        .gte('match_date', today.toISOString())
+        .lt('match_date', tomorrow.toISOString())
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('Error loading games:', error)
+      setLoading(false)
+      return
+    }
+
+    if (data) {
+      setGames(data as Match[])
+    }
+
+    setLoading(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (games.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground text-lg">No games found for this filter.</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      {games.map((game) => (
-        <GameCard key={game.id} game={game} />
-      ))}
+    <div className="grid gap-6">
+      {games.map((match) => {
+        const matchDate = new Date(match.match_date)
+        
+        // Determine status display
+        let statusDisplay = match.status
+        if (match.status === 'live') {
+          statusDisplay = 'Live'
+        } else if (match.status === 'completed') {
+          statusDisplay = 'Final'
+        } else if (match.status === 'scheduled') {
+          statusDisplay = 'Upcoming'
+        }
+
+        // Quarter/period display
+        let quarterDisplay = ''
+        if (match.status === 'completed') {
+          quarterDisplay = 'Final'
+        } else if (match.status === 'live') {
+          quarterDisplay = 'Live'
+        }
+
+        const game = {
+          id: parseInt(match.id),
+          homeTeam: {
+            name: match.home_team?.name || 'TBD',
+            logo: match.home_team?.logo_url || '',
+            record: `${match.home_team?.wins || 0}-${match.home_team?.losses || 0}`,
+          },
+          awayTeam: {
+            name: match.away_team?.name || 'TBD',
+            logo: match.away_team?.logo_url || '',
+            record: `${match.away_team?.wins || 0}-${match.away_team?.losses || 0}`,
+          },
+          homeScore: match.home_score || 0,
+          awayScore: match.away_score || 0,
+          status: statusDisplay,
+          quarter: quarterDisplay,
+          date: matchDate.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          }),
+          time: matchDate.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          }),
+          venue: match.venue?.name || 'TBD',
+          highlights: [], // You can add highlights logic if you have a highlights field
+        }
+
+        return <GameCard key={match.id} game={game} />
+      })}
     </div>
   )
 }
