@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/Client';
 import { Plus, Edit, Trash2, Search, X } from 'lucide-react';
 
 interface Division {

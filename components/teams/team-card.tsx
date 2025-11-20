@@ -1,8 +1,10 @@
-"use client"
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0"use client"
 
 import { useEffect, useState } from "react"
 import { TeamCard } from "./team-card"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/Client"
 import { Loader2 } from "lucide-react"
 
 interface Team {

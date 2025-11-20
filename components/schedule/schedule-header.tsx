@@ -1,3 +1,7 @@
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+
 import { Calendar, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 

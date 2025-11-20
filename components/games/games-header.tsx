@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { Badge } from "@/components/ui/badge"
 
 export function GamesHeader() {

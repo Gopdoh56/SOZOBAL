@@ -1,8 +1,11 @@
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 "use client"
 
 import { useState } from "react"
-import { ScheduleFilters } from "@/components/schedule-filters"
-import { ScheduleCalendar } from "@/components/schedule-calendar"
+import { ScheduleFilters } from "@/components/schedule/schedule-filters"
+import { ScheduleCalendar } from "@/components/schedule/schedule-calendar"
 
 export default function SchedulePage() {
   const [filters, setFilters] = useState({

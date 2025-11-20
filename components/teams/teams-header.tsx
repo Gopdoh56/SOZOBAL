@@ -1,9 +1,12 @@
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 "use client"
 
 import { useEffect, useState } from "react"
 import { Trophy, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/Client"
 
 export function TeamsHeader() {
   const [teamCount, setTeamCount] = useState(0)

@@ -1,3 +1,7 @@
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -5,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CalendarDays, List, Filter } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/Client"
 
 interface ScheduleFiltersProps {
   onFilterChange: (filters: {

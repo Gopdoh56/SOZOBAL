@@ -1,3 +1,7 @@
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

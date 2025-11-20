@@ -1,8 +1,11 @@
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 "use client"
 
 import { useEffect, useState } from "react"
-import { GameCard } from "@/components/game-card"
-import { createClient } from "@/lib/supabase/client"
+import { GameCard } from "@/components/games/game-card"
+import { createClient } from "@/lib/supabase/Client"
 import { Loader2 } from "lucide-react"
 
 interface Match {

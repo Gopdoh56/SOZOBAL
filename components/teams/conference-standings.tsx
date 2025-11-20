@@ -1,10 +1,12 @@
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 "use client"
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/Client"
 import { Loader2 } from "lucide-react"
 
 interface TeamStanding {

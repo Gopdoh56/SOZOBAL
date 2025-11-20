@@ -3,6 +3,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
+
+
+
 :root {
   --background: oklch(0% 0 0); /* #ffffff - Clean white background */
   --foreground: oklch(100% 0.00011 271.152); /* #1f2937 - Dark gray text */
