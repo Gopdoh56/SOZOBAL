@@ -60,7 +60,6 @@ export default function HeroSection() {
   if (loading) {
     return (
       <section className="bg-white pt-2 sm:pt-3">
-        {/* Increased loading height to match new image size */}
         <div className="flex items-center justify-center h-[500px]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
@@ -75,12 +74,8 @@ export default function HeroSection() {
         <div className="bg-blue-600 text-white px-0 py-2 mb-1 sm:mb-2 overflow-hidden">
           <style jsx>{`
             @keyframes scroll {
-              0% {
-                transform: translateX(100%);
-              }
-              100% {
-                transform: translateX(-100%);
-              }
+              0% { transform: translateX(100%); }
+              100% { transform: translateX(-100%); }
             }
             .scrolling-text {
               animation: scroll 15s linear infinite;
@@ -113,12 +108,8 @@ export default function HeroSection() {
       <div className="bg-blue-600 text-white px-0 py-2 mb-1 sm:mb-2 overflow-hidden">
         <style jsx>{`
           @keyframes scroll {
-            0% {
-              transform: translateX(100%);
-            }
-            100% {
-              transform: translateX(-100%);
-            }
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
           }
           .scrolling-text {
             animation: scroll 15s linear infinite;
@@ -136,38 +127,43 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* Hero Image Section */}
-      {/* You can change max-w-6xl to max-w-7xl or container if you want it wider too */}
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="relative bg-black overflow-hidden rounded-lg"> 
+      {/* Hero Image Section - FULL WIDTH */}
+      <div className="w-full">
+        {/* Removed rounded-lg and max-w constraint */}
+        <div className="relative bg-black"> 
+          
           {/* Featured Image */}
           {slides[currentSlide].image_url ? (
             <img
               src={slides[currentSlide].image_url}
               alt={slides[currentSlide].title}
-              // CHANGED: h-96 to h-[500px] md:h-[700px]
               className="w-full h-[500px] md:h-[700px] object-cover"
             />
           ) : (
-            // CHANGED: h-96 to h-[500px] md:h-[700px]
             <div className="w-full h-[500px] md:h-[700px] bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
               <span className="text-white text-xl">No Image</span>
             </div>
           )}
 
           {/* Dark Overlay for Text */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/60 to-transparent p-6 sm:p-10 pb-12">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 max-w-3xl leading-tight drop-shadow-lg">
-              {slides[currentSlide].title}
-            </h2>
+          {/* Added padding structure here so text stays aligned while image goes full width */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/60 to-transparent pb-12 pt-20">
+            <div className="max-w-6xl mx-auto px-4">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 max-w-3xl leading-tight drop-shadow-lg">
+                {slides[currentSlide].title}
+              </h2>
 
-            {/* Watch Button */}
-            <button className="border-2 border-white text-white px-8 sm:px-10 py-3 sm:py-4 rounded-full font-bold hover:bg-white hover:text-black transition text-base sm:text-lg tracking-wide">
-              WATCH
-            </button>
+              {/* Watch Button */}
+              <button className="border-2 border-white text-white px-8 sm:px-10 py-3 sm:py-4 rounded-full font-bold hover:bg-white hover:text-black transition text-base sm:text-lg tracking-wide">
+                WATCH
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
+      {/* Controls Section - Kept in container so they align with page content */}
+      <div className="max-w-6xl mx-auto px-4">
         {/* Carousel Indicators */}
         {slides.length > 1 && (
           <div className="flex gap-2 py-4 sm:py-6">
