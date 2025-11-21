@@ -60,7 +60,8 @@ export default function HeroSection() {
   if (loading) {
     return (
       <section className="bg-white pt-2 sm:pt-3">
-        <div className="flex items-center justify-center h-96">
+        {/* Increased loading height to match new image size */}
+        <div className="flex items-center justify-center h-[500px]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       </section>
@@ -136,29 +137,32 @@ export default function HeroSection() {
       </div>
 
       {/* Hero Image Section */}
+      {/* You can change max-w-6xl to max-w-7xl or container if you want it wider too */}
       <div className="max-w-6xl mx-auto px-4">
-        <div className="relative bg-black overflow-hidden">
+        <div className="relative bg-black overflow-hidden rounded-lg"> 
           {/* Featured Image */}
           {slides[currentSlide].image_url ? (
             <img
               src={slides[currentSlide].image_url}
               alt={slides[currentSlide].title}
-              className="w-full h-96 object-cover"
+              // CHANGED: h-96 to h-[500px] md:h-[700px]
+              className="w-full h-[500px] md:h-[700px] object-cover"
             />
           ) : (
-            <div className="w-full h-96 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+            // CHANGED: h-96 to h-[500px] md:h-[700px]
+            <div className="w-full h-[500px] md:h-[700px] bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
               <span className="text-white text-xl">No Image</span>
             </div>
           )}
 
           {/* Dark Overlay for Text */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/50 to-transparent p-4 sm:p-8">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 sm:mb-6 max-w-2xl leading-tight">
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/60 to-transparent p-6 sm:p-10 pb-12">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 max-w-3xl leading-tight drop-shadow-lg">
               {slides[currentSlide].title}
             </h2>
 
             {/* Watch Button */}
-            <button className="border-2 border-white text-white px-6 sm:px-8 py-2 sm:py-3 rounded-full font-bold hover:bg-white hover:text-black transition text-sm sm:text-base">
+            <button className="border-2 border-white text-white px-8 sm:px-10 py-3 sm:py-4 rounded-full font-bold hover:bg-white hover:text-black transition text-base sm:text-lg tracking-wide">
               WATCH
             </button>
           </div>
@@ -171,7 +175,7 @@ export default function HeroSection() {
               <button
                 key={idx}
                 onClick={() => setCurrentSlide(idx)}
-                className={`h-1 flex-1 rounded-full transition ${idx === currentSlide ? "bg-black" : "bg-gray-300"}`}
+                className={`h-1.5 flex-1 rounded-full transition ${idx === currentSlide ? "bg-black" : "bg-gray-300"}`}
                 aria-label={`Go to slide ${idx + 1}`}
               />
             ))}
