@@ -11,9 +11,8 @@ export default function NBAHeader() {
     { name: "Games", path: "/games" },
     { name: "Schedule", path: "/schedule" },
     { name: "Teams", path: "/teams" },
-    { name: "Players", path: "/players" },
     { name: "Stats", path: "/stats" },
-    { name: "Tournaments", path: "/tournaments" },
+    { name: "Players", path: "/players" },
     { name: "News", path: "/news" },
   ]
 
@@ -23,38 +22,51 @@ export default function NBAHeader() {
   }
 
   return (
-    <header className="bg-black text-white sticky top-0 z-50">
-      <div className="max-w-full px-4">
+    <header className="bg-black text-white sticky top-0 z-50 border-b border-gray-800">
+      <div className="max-w-full">
         {/* Top Navigation */}
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-4 md:gap-8">
+        <div className="flex items-center justify-between h-16 px-4">
+          <div className="flex items-center gap-6 md:gap-10">
             
+            {/* Hamburger Menu - Mobile/All screens */}
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="text-white text-2xl p-1"
+              aria-label="Menu"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+
             {/* NBA Logo - Made Clickable */}
             <button 
               onClick={() => router.push('/')}
-              className="flex items-center gap-2 hover:opacity-80 transition"
+              className="flex items-center gap-0 hover:opacity-80 transition"
             >
-              <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center font-bold text-white text-xs">
-                🏀
+              <div className="w-12 h-12 md:w-14 md:h-14 bg-white rounded flex items-center justify-center">
+                <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center">
+                  <div className="relative w-full h-full">
+                    <div className="absolute inset-0 bg-blue-600 rounded-sm" style={{ clipPath: "polygon(0 0, 45% 0, 45% 100%, 0 100%)" }}></div>
+                    <div className="absolute inset-0 bg-red-600 rounded-sm" style={{ clipPath: "polygon(55% 0, 100% 0, 100% 100%, 55% 100%)" }}></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-white text-xs font-bold">🏀</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <span className="text-xl md:text-2xl font-bold">265 HOOPS</span>
-            </button>
-
-            {/* Hamburger Menu - Mobile */}
-            <button 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden text-white text-2xl"
-            >
-              ☰
+              <span className="text-2xl md:text-3xl font-black tracking-tight ml-1">265HOOPS</span>
             </button>
 
             {/* Main Nav Items - Desktop */}
-            <nav className="hidden md:flex items-center gap-4 md:gap-6">
+            <nav className="hidden lg:flex items-center gap-8">
               {navigationItems.map((item) => (
                 <button
                   key={item.name}
                   onClick={() => handleNavigate(item.path)}
-                  className="text-sm font-medium hover:text-gray-300 transition"
+                  className="text-base font-semibold hover:text-gray-300 transition whitespace-nowrap"
                 >
                   {item.name}
                 </button>
@@ -64,19 +76,24 @@ export default function NBAHeader() {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
-            <button className="text-xl md:text-2xl">👤</button>
+            <button className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-yellow-500 hover:bg-yellow-600 transition flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-gray-900 py-4">
-            <nav className="flex flex-col gap-2">
+          <div className="lg:hidden bg-gray-900 border-t border-gray-800">
+            <nav className="flex flex-col">
               {navigationItems.map((item) => (
                 <button
                   key={item.name}
                   onClick={() => handleNavigate(item.path)}
-                  className="text-left px-4 py-2 text-sm font-medium hover:bg-gray-800 transition"
+                  className="text-left px-6 py-4 text-base font-medium hover:bg-gray-800 transition border-b border-gray-800"
                 >
                   {item.name}
                 </button>
@@ -88,5 +105,3 @@ export default function NBAHeader() {
     </header>
   )
 }
-
-
