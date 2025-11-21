@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/Client';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   LayoutDashboard,

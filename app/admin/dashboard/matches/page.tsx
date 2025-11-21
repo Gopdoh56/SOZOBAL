@@ -1,9 +1,8 @@
-// app/admin/dashboard/matches/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/Client';
-import { Plus, Edit, Trash2, Search, X, Calendar, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, X, Calendar, Clock, Trophy, BarChart3 } from 'lucide-react';
 
 interface Match {
   id: string;
@@ -24,16 +23,63 @@ interface Match {
   division?: { name: string };
 }
 
+interface ScoreBreakdown {
+  home_q1: number;
+  home_q2: number;
+  home_q3: number;
+  home_q4: number;
+  home_ot: number;
+  home_ot2: number;
+  away_q1: number;
+  away_q2: number;
+  away_q3: number;
+  away_q4: number;
+  away_ot: number;
+  away_ot2: number;
+  winning_team_id: string;
+}
+
+interface PlayerStats {
+  player_id: string;
+  points: number;
+  rebounds: number;
+  assists: number;
+  steals: number;
+  blocks: number;
+  turnovers: number;
+  fouls: number;
+  minutes_played: number;
+  field_goals_made: number;
+  field_goals_attempted: number;
+  three_pointers_made: number;
+  three_pointers_attempted: number;
+  free_throws_made: number;
+  free_throws_attempted: number;
+}
+
 export default function MatchesPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [divisions, setDivisions] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [venues, setVenues] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  
+  const [scoreData, setScoreData] = useState<ScoreBreakdown>({
+    home_q1: 0, home_q2: 0, home_q3: 0, home_q4: 0, home_ot: 0, home_ot2: 0,
+    away_q1: 0, away_q2: 0, away_q3: 0, away_q4: 0, away_ot: 0, away_ot2: 0,
+    winning_team_id: '',
+  });
+
+  const [playerStatsData, setPlayerStatsData] = useState<PlayerStats[]>([]);
+  
   const [formData, setFormData] = useState({
     division_id: '',
     home_team_id: '',
@@ -55,7 +101,7 @@ export default function MatchesPage() {
   const loadData = async () => {
     const supabase = createClient();
     
-    const [matchesData, divisionsData, teamsData, venuesData] = await Promise.all([
+    const [matchesData, divisionsData, teamsData, venuesData, playersData] = await Promise.all([
       supabase
         .from('matches')
         .select(`
@@ -69,12 +115,14 @@ export default function MatchesPage() {
       supabase.from('divisions').select('id, name, season').eq('is_active', true),
       supabase.from('teams').select('id, name, division_id').eq('is_active', true),
       supabase.from('venues').select('id, name'),
+      supabase.from('players').select('*').eq('is_active', true),
     ]);
 
     if (matchesData.data) setMatches(matchesData.data);
     if (divisionsData.data) setDivisions(divisionsData.data);
     if (teamsData.data) setTeams(teamsData.data);
     if (venuesData.data) setVenues(venuesData.data);
+    if (playersData.data) setPlayers(playersData.data);
     setLoading(false);
   };
 
@@ -114,6 +162,140 @@ export default function MatchesPage() {
         alert('Error: ' + error.message);
       }
     }
+  };
+
+  const handleScoreSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMatch) return;
+
+    // Calculate total scores
+    const homeTotal = scoreData.home_q1 + scoreData.home_q2 + scoreData.home_q3 + scoreData.home_q4 + scoreData.home_ot + scoreData.home_ot2;
+    const awayTotal = scoreData.away_q1 + scoreData.away_q2 + scoreData.away_q3 + scoreData.away_q4 + scoreData.away_ot + scoreData.away_ot2;
+
+    const supabase = createClient();
+    
+    // Update match with scores
+    const { error: matchError } = await supabase
+      .from('matches')
+      .update({
+        home_score: homeTotal,
+        away_score: awayTotal,
+        status: 'completed'
+      })
+      .eq('id', selectedMatch.id);
+
+    if (matchError) {
+      alert('Error updating match: ' + matchError.message);
+      return;
+    }
+
+    // Save score breakdown
+    const { error: scoreError } = await supabase
+      .from('match_scores')
+      .upsert({
+        match_id: selectedMatch.id,
+        ...scoreData
+      });
+
+    if (!scoreError) {
+      alert('Score saved successfully!');
+      loadData();
+      closeScoreModal();
+    } else {
+      alert('Error saving score breakdown: ' + scoreError.message);
+    }
+  };
+
+  const handleStatsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMatch) return;
+
+    const supabase = createClient();
+
+    // Delete existing stats for this match
+    await supabase
+      .from('player_match_stats')
+      .delete()
+      .eq('match_id', selectedMatch.id);
+
+    // Insert new stats
+    const statsToInsert = playerStatsData
+      .filter(stat => stat.player_id)
+      .map(stat => ({
+        match_id: selectedMatch.id,
+        ...stat
+      }));
+
+    if (statsToInsert.length === 0) {
+      alert('Please add at least one player stat');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('player_match_stats')
+      .insert(statsToInsert);
+
+    if (!error) {
+      alert('Player stats saved successfully!');
+      closeStatsModal();
+    } else {
+      alert('Error saving stats: ' + error.message);
+    }
+  };
+
+  const openScoreModal = (match: Match) => {
+    setSelectedMatch(match);
+    setScoreData({
+      home_q1: 0, home_q2: 0, home_q3: 0, home_q4: 0, home_ot: 0, home_ot2: 0,
+      away_q1: 0, away_q2: 0, away_q3: 0, away_q4: 0, away_ot: 0, away_ot2: 0,
+      winning_team_id: '',
+    });
+    setShowScoreModal(true);
+  };
+
+  const closeScoreModal = () => {
+    setShowScoreModal(false);
+    setSelectedMatch(null);
+  };
+
+  const openStatsModal = (match: Match) => {
+    setSelectedMatch(match);
+    // Initialize with empty player stats
+    const homePlayers = players.filter(p => p.team_id === match.home_team_id);
+    const awayPlayers = players.filter(p => p.team_id === match.away_team_id);
+    
+    const initialStats = [...homePlayers, ...awayPlayers].map(player => ({
+      player_id: player.id,
+      points: 0,
+      rebounds: 0,
+      assists: 0,
+      steals: 0,
+      blocks: 0,
+      turnovers: 0,
+      fouls: 0,
+      minutes_played: 0,
+      field_goals_made: 0,
+      field_goals_attempted: 0,
+      three_pointers_made: 0,
+      three_pointers_attempted: 0,
+      free_throws_made: 0,
+      free_throws_attempted: 0,
+    }));
+    
+    setPlayerStatsData(initialStats);
+    setShowStatsModal(true);
+  };
+
+  const closeStatsModal = () => {
+    setShowStatsModal(false);
+    setSelectedMatch(null);
+    setPlayerStatsData([]);
+  };
+
+  const updatePlayerStat = (playerIndex: number, field: keyof PlayerStats, value: number) => {
+    const newStats = [...playerStatsData];
+    newStats[playerIndex] = { ...newStats[playerIndex], [field]: value };
+    setPlayerStatsData(newStats);
   };
 
   const handleDelete = async (id: string) => {
@@ -336,7 +518,21 @@ export default function MatchesPage() {
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => openScoreModal(match)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Trophy className="w-4 h-4" />
+                Match Score
+              </button>
+              <button
+                onClick={() => openStatsModal(match)}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Match Stats
+              </button>
               <button
                 onClick={() => openModal(match)}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -362,7 +558,327 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {/* Modal */}
+
+      {/* Score Modal */}
+      {showScoreModal && selectedMatch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-black">Match Score Breakdown</h2>
+              <button onClick={closeScoreModal} className="text-black hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleScoreSubmit} className="p-6 space-y-6">
+              <div className="text-center mb-4">
+                <p className="text-lg font-semibold text-black">
+                  {selectedMatch.home_team?.name} vs {selectedMatch.away_team?.name}
+                </p>
+              </div>
+
+              {/* Quarter Scores */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {['q1', 'q2', 'q3', 'q4', 'ot', 'ot2'].map((quarter, idx) => (
+                  <div key={quarter} className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="text-sm font-bold text-black mb-3 text-center">
+                      {quarter === 'ot' ? 'Overtime' : quarter === 'ot2' ? '2nd OT' : `Quarter ${idx + 1}`}
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-black mb-1">
+                          {selectedMatch.home_team?.name}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={scoreData[`home_${quarter}` as keyof ScoreBreakdown]}
+                          onChange={(e) => setScoreData({ ...scoreData, [`home_${quarter}`]: parseInt(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-black mb-1">
+                          {selectedMatch.away_team?.name}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={scoreData[`away_${quarter}` as keyof ScoreBreakdown]}
+                          onChange={(e) => setScoreData({ ...scoreData, [`away_${quarter}`]: parseInt(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total Scores */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-lg font-bold mb-4 text-black">Final Score</h3>
+                <div className="flex justify-around items-center">
+                  <div className="text-center">
+                    <p className="text-sm text-black mb-2">{selectedMatch.home_team?.name}</p>
+                    <p className="text-4xl font-bold text-black">
+                      {scoreData.home_q1 + scoreData.home_q2 + scoreData.home_q3 + scoreData.home_q4 + scoreData.home_ot + scoreData.home_ot2}
+                    </p>
+                  </div>
+                  <div className="text-2xl text-black">-</div>
+                  <div className="text-center">
+                    <p className="text-sm text-black mb-2">{selectedMatch.away_team?.name}</p>
+                    <p className="text-4xl font-bold text-black">
+                      {scoreData.away_q1 + scoreData.away_q2 + scoreData.away_q3 + scoreData.away_q4 + scoreData.away_ot + scoreData.away_ot2}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Winning Team */}
+              <div>
+                <label className="block text-sm font-medium text-black mb-2">
+                  Winning Team *
+                </label>
+                <select
+                  required
+                  value={scoreData.winning_team_id}
+                  onChange={(e) => setScoreData({ ...scoreData, winning_team_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                >
+                  <option value="">Select Winner</option>
+                  <option value={selectedMatch.home_team_id}>{selectedMatch.home_team?.name}</option>
+                  <option value={selectedMatch.away_team_id}>{selectedMatch.away_team?.name}</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={closeScoreModal}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Save Score
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Stats Modal */}
+      {showStatsModal && selectedMatch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-7xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-black">Player Match Statistics</h2>
+              <button onClick={closeStatsModal} className="text-black hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleStatsSubmit} className="p-6">
+              <div className="text-center mb-6">
+                <p className="text-lg font-semibold text-black">
+                  {selectedMatch.home_team?.name} vs {selectedMatch.away_team?.name}
+                </p>
+              </div>
+
+              <div className="space-y-8">
+                {/* Home Team Players */}
+                <div>
+                  <h3 className="text-lg font-bold mb-4 text-black">{selectedMatch.home_team?.name}</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-2 py-2 text-left text-black">Player</th>
+                          <th className="px-2 py-2 text-center text-black">MIN</th>
+                          <th className="px-2 py-2 text-center text-black">PTS</th>
+                          <th className="px-2 py-2 text-center text-black">REB</th>
+                          <th className="px-2 py-2 text-center text-black">AST</th>
+                          <th className="px-2 py-2 text-center text-black">STL</th>
+                          <th className="px-2 py-2 text-center text-black">BLK</th>
+                          <th className="px-2 py-2 text-center text-black">TO</th>
+                          <th className="px-2 py-2 text-center text-black">PF</th>
+                          <th className="px-2 py-2 text-center text-black">FG</th>
+                          <th className="px-2 py-2 text-center text-black">3PT</th>
+                          <th className="px-2 py-2 text-center text-black">FT</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {playerStatsData
+                          .map((stat, idx) => ({ stat, idx, player: players.find(p => p.id === stat.player_id) }))
+                          .filter(({ player }) => player?.team_id === selectedMatch.home_team_id)
+                          .map(({ stat, idx, player }) => (
+                            <tr key={idx} className="border-t">
+                              <td className="px-2 py-2 font-medium text-black">
+                                {player ? `${player.first_name} ${player.last_name} #${player.jersey_number}` : 'Unknown'}
+                              </td>
+                              {/* Added spinner-hide classes and text-black to all inputs below */}
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.minutes_played} onChange={(e) => updatePlayerStat(idx, 'minutes_played', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.points} onChange={(e) => updatePlayerStat(idx, 'points', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.rebounds} onChange={(e) => updatePlayerStat(idx, 'rebounds', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.assists} onChange={(e) => updatePlayerStat(idx, 'assists', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.steals} onChange={(e) => updatePlayerStat(idx, 'steals', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.blocks} onChange={(e) => updatePlayerStat(idx, 'blocks', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.turnovers} onChange={(e) => updatePlayerStat(idx, 'turnovers', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.fouls} onChange={(e) => updatePlayerStat(idx, 'fouls', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <div className="flex gap-1 text-black">
+                                  <input type="number" min="0" value={stat.field_goals_made} onChange={(e) => updatePlayerStat(idx, 'field_goals_made', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="M" />
+                                  <span>/</span>
+                                  <input type="number" min="0" value={stat.field_goals_attempted} onChange={(e) => updatePlayerStat(idx, 'field_goals_attempted', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="A" />
+                                </div>
+                              </td>
+                              <td className="px-2 py-2">
+                                <div className="flex gap-1 text-black">
+                                  <input type="number" min="0" value={stat.three_pointers_made} onChange={(e) => updatePlayerStat(idx, 'three_pointers_made', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="M" />
+                                  <span>/</span>
+                                  <input type="number" min="0" value={stat.three_pointers_attempted} onChange={(e) => updatePlayerStat(idx, 'three_pointers_attempted', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="A" />
+                                </div>
+                              </td>
+                              <td className="px-2 py-2">
+                                <div className="flex gap-1 text-black">
+                                  <input type="number" min="0" value={stat.free_throws_made} onChange={(e) => updatePlayerStat(idx, 'free_throws_made', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="M" />
+                                  <span>/</span>
+                                  <input type="number" min="0" value={stat.free_throws_attempted} onChange={(e) => updatePlayerStat(idx, 'free_throws_attempted', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="A" />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Away Team Players */}
+                <div>
+                  <h3 className="text-lg font-bold mb-4 text-black">{selectedMatch.away_team?.name}</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-2 py-2 text-left text-black">Player</th>
+                          <th className="px-2 py-2 text-center text-black">MIN</th>
+                          <th className="px-2 py-2 text-center text-black">PTS</th>
+                          <th className="px-2 py-2 text-center text-black">REB</th>
+                          <th className="px-2 py-2 text-center text-black">AST</th>
+                          <th className="px-2 py-2 text-center text-black">STL</th>
+                          <th className="px-2 py-2 text-center text-black">BLK</th>
+                          <th className="px-2 py-2 text-center text-black">TO</th>
+                          <th className="px-2 py-2 text-center text-black">PF</th>
+                          <th className="px-2 py-2 text-center text-black">FG</th>
+                          <th className="px-2 py-2 text-center text-black">3PT</th>
+                          <th className="px-2 py-2 text-center text-black">FT</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {playerStatsData
+                          .map((stat, idx) => ({ stat, idx, player: players.find(p => p.id === stat.player_id) }))
+                          .filter(({ player }) => player?.team_id === selectedMatch.away_team_id)
+                          .map(({ stat, idx, player }) => (
+                            <tr key={idx} className="border-t">
+                              <td className="px-2 py-2 font-medium text-black">
+                                {player ? `${player.first_name} ${player.last_name} #${player.jersey_number}` : 'Unknown'}
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.minutes_played} onChange={(e) => updatePlayerStat(idx, 'minutes_played', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.points} onChange={(e) => updatePlayerStat(idx, 'points', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.rebounds} onChange={(e) => updatePlayerStat(idx, 'rebounds', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.assists} onChange={(e) => updatePlayerStat(idx, 'assists', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.steals} onChange={(e) => updatePlayerStat(idx, 'steals', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.blocks} onChange={(e) => updatePlayerStat(idx, 'blocks', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.turnovers} onChange={(e) => updatePlayerStat(idx, 'turnovers', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <input type="number" min="0" value={stat.fouls} onChange={(e) => updatePlayerStat(idx, 'fouls', parseInt(e.target.value) || 0)} className="w-16 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                              </td>
+                              <td className="px-2 py-2">
+                                <div className="flex gap-1 text-black">
+                                  <input type="number" min="0" value={stat.field_goals_made} onChange={(e) => updatePlayerStat(idx, 'field_goals_made', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="M" />
+                                  <span>/</span>
+                                  <input type="number" min="0" value={stat.field_goals_attempted} onChange={(e) => updatePlayerStat(idx, 'field_goals_attempted', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="A" />
+                                </div>
+                              </td>
+                              <td className="px-2 py-2">
+                                <div className="flex gap-1 text-black">
+                                  <input type="number" min="0" value={stat.three_pointers_made} onChange={(e) => updatePlayerStat(idx, 'three_pointers_made', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="M" />
+                                  <span>/</span>
+                                  <input type="number" min="0" value={stat.three_pointers_attempted} onChange={(e) => updatePlayerStat(idx, 'three_pointers_attempted', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="A" />
+                                </div>
+                              </td>
+                              <td className="px-2 py-2">
+                                <div className="flex gap-1 text-black">
+                                  <input type="number" min="0" value={stat.free_throws_made} onChange={(e) => updatePlayerStat(idx, 'free_throws_made', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="M" />
+                                  <span>/</span>
+                                  <input type="number" min="0" value={stat.free_throws_attempted} onChange={(e) => updatePlayerStat(idx, 'free_throws_attempted', parseInt(e.target.value) || 0)} className="w-12 px-1 py-1 border rounded text-center text-black [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="A" />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-6">
+                <button
+                  type="button"
+                  onClick={closeStatsModal}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Save Player Stats
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      
+
+      {/* Edit Match Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
@@ -495,32 +1011,6 @@ export default function MatchesPage() {
                     <option value="postponed">Postponed</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Home Score
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.home_score}
-                    onChange={(e) => setFormData({ ...formData, home_score: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Away Score
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.away_score}
-                    onChange={(e) => setFormData({ ...formData, away_score: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
                 </div>
 
                 <div>
