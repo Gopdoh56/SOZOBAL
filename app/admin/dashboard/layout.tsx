@@ -34,6 +34,7 @@ const navigation: NavItem[] = [
   { name: 'Tournaments', href: '/admin/dashboard/tournaments', icon: Trophy },
   { name: 'Venues', href: '/admin/dashboard/venues', icon: MapPin },
   { name: 'News', href: '/admin/dashboard/news', icon: Newspaper },
+  { name: 'hero', href: '/admin/dashboard/hero', icon: Newspaper },
   { name: 'Settings', href: '/admin/dashboard/settings', icon: Settings },
 ];
 

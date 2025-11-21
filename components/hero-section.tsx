@@ -1,44 +1,155 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { createClient } from '@/lib/supabase/Client'
+
+interface HeroSlide {
+  id: string
+  title: string
+  image_url: string
+  next_story: string
+  order_index: number
+  is_active: boolean
+}
+
+interface BannerConfig {
+  id: string
+  text: string
+  is_active: boolean
+}
 
 export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [slides, setSlides] = useState<HeroSlide[]>([])
+  const [bannerText, setBannerText] = useState("GOTECH SOLUTIONS - GET YOUR WEBSITES NOW!!!!! 🚀")
+  const [loading, setLoading] = useState(true)
 
-  const slides = [
-    {
-      title: "FANTASTIC FINISH: VUČEVIĆ'S CLUTCH 3 STUNS BLAZERS",
-      image: "/basketball-players-red-jerseys-celebrating-clutch-.jpg",
-      nextStory: "Next: Fantastic Finish: Knicks prevail in wild finish",
-    },
-    {
-      title: "KNICKS DOMINATE IN THRILLING OVERTIME VICTORY",
-      image: "/basketball-action.png",
-      nextStory: "Next: Historic performance leads team to championship",
-    },
-  ]
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    const supabase = createClient()
+
+    // Load active slides
+    const { data: slidesData } = await supabase
+      .from('hero_slides')
+      .select('*')
+      .eq('is_active', true)
+      .order('order_index', { ascending: true })
+
+    // Load active banner
+    const { data: bannerData } = await supabase
+      .from('banner_config')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (slidesData && slidesData.length > 0) {
+      setSlides(slidesData)
+    }
+
+    if (bannerData && bannerData.length > 0) {
+      setBannerText(bannerData[0].text)
+    }
+
+    setLoading(false)
+  }
+
+  if (loading) {
+    return (
+      <section className="bg-white pt-2 sm:pt-3">
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </section>
+    )
+  }
+
+  // If no slides, show placeholder
+  if (slides.length === 0) {
+    return (
+      <section className="bg-white pt-2 sm:pt-3">
+        <div className="bg-blue-600 text-white px-0 py-2 mb-1 sm:mb-2 overflow-hidden">
+          <style jsx>{`
+            @keyframes scroll {
+              0% {
+                transform: translateX(100%);
+              }
+              100% {
+                transform: translateX(-100%);
+              }
+            }
+            .scrolling-text {
+              animation: scroll 15s linear infinite;
+              white-space: nowrap;
+            }
+          `}</style>
+          
+          <div className="flex items-center gap-8">
+            <div className="scrolling-text flex items-center gap-8">
+              <span className="text-sm sm:text-base font-bold">{bannerText}</span>
+              <span className="text-sm sm:text-base font-bold">{bannerText}</span>
+              <span className="text-sm sm:text-base font-bold">{bannerText}</span>
+              <span className="text-sm sm:text-base font-bold">{bannerText}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="bg-gray-100 rounded-lg p-12 text-center">
+            <p className="text-gray-500">No hero slides available. Please add slides in the admin panel.</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <section className="bg-white pt-4 sm:pt-6">
-      {/* League Pass Banner - Centered and Narrower */}
-      <div className="bg-blue-600 text-white px-4 py-3 sm:py-4 mb-4 sm:mb-6 mx-4 rounded-lg">
-        <div className="max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-          <span className="text-base sm:text-lg font-bold">GOTECH SOLUTIONS</span>
-          <button className="bg-white text-blue-600 px-4 sm:px-6 py-2 rounded font-bold hover:bg-gray-100 transition text-sm sm:text-base">
-            GET YOUR WEBSITES NOW!!!!!
-          </button>
+    <section className="bg-white pt-2 sm:pt-3">
+      {/* League Pass Banner - Scrolling Text */}
+      <div className="bg-blue-600 text-white px-0 py-2 mb-1 sm:mb-2 overflow-hidden">
+        <style jsx>{`
+          @keyframes scroll {
+            0% {
+              transform: translateX(100%);
+            }
+            100% {
+              transform: translateX(-100%);
+            }
+          }
+          .scrolling-text {
+            animation: scroll 15s linear infinite;
+            white-space: nowrap;
+          }
+        `}</style>
+        
+        <div className="flex items-center gap-8">
+          <div className="scrolling-text flex items-center gap-8">
+            <span className="text-sm sm:text-base font-bold">{bannerText}</span>
+            <span className="text-sm sm:text-base font-bold">{bannerText}</span>
+            <span className="text-sm sm:text-base font-bold">{bannerText}</span>
+            <span className="text-sm sm:text-base font-bold">{bannerText}</span>
+          </div>
         </div>
       </div>
 
       {/* Hero Image Section */}
       <div className="max-w-6xl mx-auto px-4">
-        <div className="relative bg-black overflow-hidden rounded-lg">
+        <div className="relative bg-black overflow-hidden">
           {/* Featured Image */}
-          <img
-            src={slides[currentSlide].image || "/placeholder.svg"}
-            alt={slides[currentSlide].title}
-            className="w-full h-96 object-cover"
-          />
+          {slides[currentSlide].image_url ? (
+            <img
+              src={slides[currentSlide].image_url}
+              alt={slides[currentSlide].title}
+              className="w-full h-96 object-cover"
+            />
+          ) : (
+            <div className="w-full h-96 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+              <span className="text-white text-xl">No Image</span>
+            </div>
+          )}
 
           {/* Dark Overlay for Text */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/50 to-transparent p-4 sm:p-8">
@@ -54,21 +165,25 @@ export default function HeroSection() {
         </div>
 
         {/* Carousel Indicators */}
-        <div className="flex gap-2 py-4 sm:py-6">
-          {slides.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentSlide(idx)}
-              className={`h-1 flex-1 rounded-full transition ${idx === currentSlide ? "bg-black" : "bg-gray-300"}`}
-              aria-label={`Go to slide ${idx + 1}`}
-            />
-          ))}
-        </div>
+        {slides.length > 1 && (
+          <div className="flex gap-2 py-4 sm:py-6">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentSlide(idx)}
+                className={`h-1 flex-1 rounded-full transition ${idx === currentSlide ? "bg-black" : "bg-gray-300"}`}
+                aria-label={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Next Story Preview */}
-        <div className="pb-6 sm:pb-8">
-          <p className="text-gray-600 text-sm">{slides[currentSlide].nextStory}</p>
-        </div>
+        {slides[currentSlide].next_story && (
+          <div className="pb-6 sm:pb-8">
+            <p className="text-gray-600 text-sm">{slides[currentSlide].next_story}</p>
+          </div>
+        )}
       </div>
     </section>
   )

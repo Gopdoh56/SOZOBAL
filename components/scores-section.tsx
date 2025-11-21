@@ -72,6 +72,7 @@ export default function ScoresSection() {
       .gte('match_date', startOfWeek.toISOString())
       .lte('match_date', endOfWeek.toISOString())
       .order('match_date', { ascending: true })
+      .limit(3) // <--- THIS LIMITS THE RESULTS TO 3 GAMES ONLY
 
     if (data) {
       setMatches(data)
