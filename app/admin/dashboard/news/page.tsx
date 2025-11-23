@@ -1,450 +1,342 @@
+"use client"
 
-// ========================================
-// FILE: app/admin/dashboard/news/page.tsx
-// ========================================
-'use client';
+import { useEffect, useState } from "react"
+import { createClient } from '@/lib/supabase/Client'
 
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/Client';
-import { Plus, Edit, Trash2, Search, X, Newspaper } from 'lucide-react';
-
-interface NewsArticle {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  excerpt: string;
-  author: string;
-  category: string;
-  featured_image: string;
-  is_published: boolean;
-  published_at: string;
-  created_at: string;
+interface NewsStory {
+  id: string
+  title: string
+  image_url: string
+  video_url: string
+  next_story: string
+  order_index: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
-export default function NewsPage() {
-  const [news, setNews] = useState<NewsArticle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingNews, setEditingNews] = useState<NewsArticle | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [formData, setFormData] = useState({
-    title: '',
-    slug: '',
-    content: '',
-    excerpt: '',
-    author: '',
-    category: 'general',
-    featured_image: '',
-    is_published: false,
-    published_at: '',
-  });
+export default function LatestNewsAdmin() {
+  const [stories, setStories] = useState<NewsStory[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Form state
+  const [title, setTitle] = useState("")
+  const [imageUrl, setImageUrl] = useState("")
+  const [videoUrl, setVideoUrl] = useState("")
+  const [nextStory, setNextStory] = useState("")
+  const [orderIndex, setOrderIndex] = useState(0)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
-    loadNews();
-  }, []);
+    loadStories()
+  }, [])
 
-  const loadNews = async () => {
-    const supabase = createClient();
+  const loadStories = async () => {
+    setLoading(true)
+    const supabase = createClient()
+
     const { data, error } = await supabase
-      .from('news')
+      .from('latest_news')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('order_index', { ascending: true })
 
-    if (data) setNews(data);
-    setLoading(false);
-  };
+    if (error) {
+      console.error('Error loading stories:', error)
+    } else if (data) {
+      setStories(data)
+    }
 
-  const generateSlug = (title: string) => {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-  };
+    setLoading(false)
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const supabase = createClient();
+  const handleSave = async () => {
+    if (!title.trim()) {
+      alert('Title is required')
+      return
+    }
 
-    const newsData = {
-      ...formData,
-      slug: formData.slug || generateSlug(formData.title),
-      published_at: formData.is_published && !formData.published_at 
-        ? new Date().toISOString() 
-        : formData.published_at,
-    };
+    const supabase = createClient()
 
-    if (editingNews) {
+    if (editingId) {
       const { error } = await supabase
-        .from('news')
-        .update(newsData)
-        .eq('id', editingNews.id);
+        .from('latest_news')
+        .update({
+          title,
+          image_url: imageUrl || '',
+          video_url: videoUrl || '',
+          next_story: nextStory,
+          order_index: orderIndex
+        })
+        .eq('id', editingId)
 
-      if (!error) {
-        alert('News article updated successfully!');
-        loadNews();
-        closeModal();
-      } else {
-        alert('Error: ' + error.message);
-      }
+      if (error) console.error('Error updating story:', error)
     } else {
       const { error } = await supabase
-        .from('news')
-        .insert([newsData]);
+        .from('latest_news')
+        .insert({
+          title,
+          image_url: imageUrl || '',
+          video_url: videoUrl || '',
+          next_story: nextStory,
+          order_index: orderIndex,
+          is_active: true
+        })
 
-      if (!error) {
-        alert('News article created successfully!');
-        loadNews();
-        closeModal();
-      } else {
-        alert('Error: ' + error.message);
-      }
+      if (error) console.error('Error creating story:', error)
     }
-  };
+
+    resetForm()
+    loadStories()
+  }
+
+  const resetForm = () => {
+    setTitle("")
+    setImageUrl("")
+    setVideoUrl("")
+    setNextStory("")
+    setOrderIndex(0)
+    setEditingId(null)
+  }
+
+  const handleEdit = (story: NewsStory) => {
+    setTitle(story.title)
+    setImageUrl(story.image_url)
+    setVideoUrl(story.video_url)
+    setNextStory(story.next_story)
+    setOrderIndex(story.order_index)
+    setEditingId(story.id)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleToggle = async (id: string, currentStatus: boolean) => {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('latest_news')
+      .update({ is_active: !currentStatus })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error toggling story:', error)
+    } else {
+      loadStories()
+    }
+  }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this news article?')) return;
+    if (!confirm('Are you sure you want to delete this news story?')) return
 
-    const supabase = createClient();
+    const supabase = createClient()
     const { error } = await supabase
-      .from('news')
+      .from('latest_news')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
 
-    if (!error) {
-      alert('News article deleted successfully!');
-      loadNews();
-    }
-  };
-
-  const openModal = (article?: NewsArticle) => {
-    if (article) {
-      setEditingNews(article);
-      setFormData({
-        title: article.title,
-        slug: article.slug,
-        content: article.content || '',
-        excerpt: article.excerpt || '',
-        author: article.author || '',
-        category: article.category || 'general',
-        featured_image: article.featured_image || '',
-        is_published: article.is_published,
-        published_at: article.published_at || '',
-      });
+    if (error) {
+      console.error('Error deleting story:', error)
     } else {
-      setEditingNews(null);
-      setFormData({
-        title: '',
-        slug: '',
-        content: '',
-        excerpt: '',
-        author: '',
-        category: 'general',
-        featured_image: '',
-        is_published: false,
-        published_at: '',
-      });
+      loadStories()
     }
-    setShowModal(true);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingNews(null);
-  };
-
-  const filteredNews = news.filter((article) =>
-    article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'match-report':
-        return 'bg-blue-100 text-blue-700';
-      case 'player-news':
-        return 'bg-green-100 text-green-700';
-      case 'tournament':
-        return 'bg-purple-100 text-purple-700';
-      case 'team-news':
-        return 'bg-yellow-100 text-yellow-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
+  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">News</h1>
-          <p className="text-gray-600 mt-1">Manage news articles and announcements</p>
-        </div>
-        <button
-          onClick={() => openModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Article
-        </button>
-      </div>
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-3xl font-bold text-black mb-6">Latest News Admin</h1>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search news..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredNews.map((article) => (
-          <div
-            key={article.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
-          >
-            {article.featured_image ? (
-              <div 
-                className="w-full h-48 bg-gray-200 bg-cover bg-center"
-                style={{ backgroundImage: `url(${article.featured_image})` }}
+        {/* Form */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6 border border-gray-200">
+          <h2 className="text-xl font-bold text-black mb-4">
+            {editingId ? 'Edit News Story' : 'Add New News Story'}
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">
+                Title *
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-black placeholder:text-gray-500"
+                placeholder="FANTASTIC FINISH: VUČEVIĆ'S CLUTCH 3 STUNS BLAZERS"
               />
-            ) : (
-              <div className="w-full h-48 bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
-                <Newspaper className="w-16 h-16 text-white opacity-50" />
-              </div>
-            )}
-
-            <div className="p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`px-2 py-1 text-xs font-medium rounded ${getCategoryColor(article.category)}`}>
-                  {article.category}
-                </span>
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded ${
-                    article.is_published
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {article.is_published ? 'Published' : 'Draft'}
-                </span>
-              </div>
-
-              <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                {article.title}
-              </h3>
-
-              {article.excerpt && (
-                <p className="text-sm text-gray-600 mb-3 line-clamp-3">{article.excerpt}</p>
-              )}
-
-              <div className="flex items-center gap-2 mb-4 text-xs text-gray-500">
-                {article.author && (
-                  <span>By {article.author}</span>
-                )}
-                {article.published_at && (
-                  <>
-                    <span>•</span>
-                    <span>{new Date(article.published_at).toLocaleDateString()}</span>
-                  </>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => openModal(article)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Edit className="w-4 h-4" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(article.id)}
-                  className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredNews.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">No news articles found</p>
-        </div>
-      )}
-
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {editingNews ? 'Edit Article' : 'Add New Article'}
-              </h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                <X className="w-6 h-6" />
-              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Article title"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Slug (URL-friendly version)
-                </label>
-                <input
-                  type="text"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="article-slug (auto-generated if left empty)"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Excerpt
-                </label>
-                <textarea
-                  value={formData.excerpt}
-                  onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  rows={2}
-                  placeholder="Short summary of the article"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Content *
-                </label>
-                <textarea
-                  required
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  rows={8}
-                  placeholder="Full article content..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Author
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.author}
-                    onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Author name"
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">
+                Image URL (Optional)
+              </label>
+              <input
+                type="text"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-black placeholder:text-gray-500"
+                placeholder="/basketball-game-action.png"
+              />
+              {imageUrl && (
+                <div className="mt-2">
+                  <img
+                    src={imageUrl}
+                    alt="Preview"
+                    className="w-full max-w-md h-40 object-cover rounded border border-gray-300"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none'
+                    }}
                   />
                 </div>
+              )}
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="general">General</option>
-                    <option value="match-report">Match Report</option>
-                    <option value="player-news">Player News</option>
-                    <option value="team-news">Team News</option>
-                    <option value="tournament">Tournament</option>
-                    <option value="announcement">Announcement</option>
-                  </select>
-                </div>
-              </div>
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">
+                Video URL (Optional)
+              </label>
+              <input
+                type="text"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-black placeholder:text-gray-500"
+                placeholder="https://youtube.com/watch?v=..."
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Featured Image URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.featured_image}
-                  onChange={(e) => setFormData({ ...formData, featured_image: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">
+                Next Story Text
+              </label>
+              <input
+                type="text"
+                value={nextStory}
+                onChange={(e) => setNextStory(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-black placeholder:text-gray-500"
+                placeholder="Next: Fantastic Finish: Knicks prevail in wild finish"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Publish Date (optional)
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.published_at}
-                  onChange={(e) => setFormData({ ...formData, published_at: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-bold text-black mb-2">
+                Order Index (Lower numbers appear first)
+              </label>
+              <input
+                type="number"
+                value={orderIndex}
+                onChange={(e) => setOrderIndex(parseInt(e.target.value) || 0)}
+                className="w-full px-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent text-black placeholder:text-gray-500"
+                placeholder="0"
+              />
+            </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_published"
-                  checked={formData.is_published}
-                  onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                />
-                <label htmlFor="is_published" className="text-sm font-medium text-gray-700">
-                  Publish Article
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-4">
+            <div className="flex gap-3">
+              <button
+                onClick={handleSave}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition"
+              >
+                {editingId ? 'Update' : 'Add'} Story
+              </button>
+              {editingId && (
                 <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={resetForm}
+                  className="bg-gray-200 text-black px-6 py-2 rounded-lg font-bold hover:bg-gray-300 transition"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                >
-                  {editingNews ? 'Update Article' : 'Create Article'}
-                </button>
-              </div>
-            </form>
+              )}
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Stories List */}
+        <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-300">
+            <h2 className="text-xl font-bold text-black">Existing News Stories</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Total: {stories.length} stories ({stories.filter(s => s.is_active).length} active)
+            </p>
+          </div>
+          <div className="divide-y divide-gray-300">
+            {stories.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                No news stories yet. Add your first one above!
+              </div>
+            ) : (
+              stories.map((story) => (
+                <div key={story.id} className="p-6">
+                  <div className="flex gap-4">
+                    {story.image_url && (
+                      <img
+                        src={story.image_url}
+                        alt={story.title}
+                        className="w-32 h-20 object-cover rounded border border-gray-300"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h3 className="text-black font-bold text-lg">{story.title}</h3>
+                      {story.next_story && (
+                        <p className="text-sm text-gray-600 mt-1 font-medium">
+                          {story.next_story}
+                        </p>
+                      )}
+                      {story.video_url && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          📹 Video: {story.video_url}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="text-xs text-black font-bold">
+                          Order: {story.order_index}
+                        </span>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-bold ${
+                            story.is_active
+                              ? 'bg-green-100 text-black border border-green-300'
+                              : 'bg-gray-100 text-black border border-gray-300'
+                          }`}
+                        >
+                          {story.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Updated: {new Date(story.updated_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => handleToggle(story.id, story.is_active)}
+                        className="text-blue-600 hover:text-blue-800 font-bold text-sm"
+                      >
+                        Toggle
+                      </button>
+                      <button
+                        onClick={() => handleEdit(story)}
+                        className="text-black hover:text-gray-700 font-bold text-sm underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(story.id)}
+                        className="text-red-600 hover:text-red-800 font-bold text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
     </div>
-  );
+  )
 }
