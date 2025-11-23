@@ -7,7 +7,7 @@ import { Plus, Edit, Trash2, Search, X, Users, ArrowLeft } from 'lucide-react';
 
 interface Team {
   id: string;
-  division_id: string;
+  division_id: string | null;
   name: string;
   short_name: string;
   coach_name: string;
@@ -134,36 +134,42 @@ export default function TeamsPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const supabase = createClient();
+  e.preventDefault();
+  const supabase = createClient();
 
-    if (editingTeam) {
-      const { error } = await supabase
-        .from('teams')
-        .update(formData)
-        .eq('id', editingTeam.id);
-
-      if (!error) {
-        alert('Team updated successfully!');
-        loadData();
-        closeModal();
-      } else {
-        alert('Error updating team: ' + error.message);
-      }
-    } else {
-      const { error } = await supabase
-        .from('teams')
-        .insert([formData]);
-
-      if (!error) {
-        alert('Team created successfully!');
-        loadData();
-        closeModal();
-      } else {
-        alert('Error creating team: ' + error.message);
-      }
-    }
+  // Convert empty string to null for division_id
+  const teamData = {
+    ...formData,
+    division_id: formData.division_id || null,
   };
+
+  if (editingTeam) {
+    const { error } = await supabase
+      .from('teams')
+      .update(teamData)  // ← Use teamData instead of formData
+      .eq('id', editingTeam.id);
+
+    if (!error) {
+      alert('Team updated successfully!');
+      loadData();
+      closeModal();
+    } else {
+      alert('Error updating team: ' + error.message);
+    }
+  } else {
+    const { error } = await supabase
+      .from('teams')
+      .insert([teamData]);  // ← Use teamData instead of formData
+
+    if (!error) {
+      alert('Team created successfully!');
+      loadData();
+      closeModal();
+    } else {
+      alert('Error creating team: ' + error.message);
+    }
+  }
+};
 
   const handlePlayerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,7 +256,7 @@ export default function TeamsPage() {
     if (team) {
       setEditingTeam(team);
       setFormData({
-        division_id: team.division_id,
+        division_id: team.division_id || '',
         name: team.name,
         short_name: team.short_name || '',
         coach_name: team.coach_name || '',
@@ -267,7 +273,7 @@ export default function TeamsPage() {
     } else {
       setEditingTeam(null);
       setFormData({
-        division_id: divisions[0]?.id || '',
+        division_id: '',
         name: '',
         short_name: '',
         coach_name: '',
@@ -350,7 +356,7 @@ export default function TeamsPage() {
               onClick={handleBackToTeams}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <ArrowLeft className="w-6 h-6 text-black" />
             </button>
             <div className="flex items-center gap-3">
               {selectedTeam.logo_url ? (
@@ -364,8 +370,8 @@ export default function TeamsPage() {
                 </div>
               )}
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{selectedTeam.name}</h1>
-                <p className="text-gray-600 mt-1">Manage team players</p>
+                <h1 className="text-3xl font-bold text-black">{selectedTeam.name}</h1>
+                <p className="text-black mt-1">Manage team players</p>
               </div>
             </div>
           </div>
@@ -392,11 +398,11 @@ export default function TeamsPage() {
                     </span>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="text-lg font-semibold text-black">
                       {player.first_name} {player.last_name}
                     </h3>
                     {player.position && (
-                      <p className="text-sm text-gray-600">{player.position}</p>
+                      <p className="text-sm text-black">{player.position}</p>
                     )}
                   </div>
                 </div>
@@ -404,7 +410,7 @@ export default function TeamsPage() {
                   className={`px-3 py-1 text-xs font-medium rounded-full ${
                     player.is_active
                       ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700'
+                      : 'bg-gray-100 text-black'
                   }`}
                 >
                   {player.is_active ? 'Active' : 'Inactive'}
@@ -414,20 +420,20 @@ export default function TeamsPage() {
               <div className="space-y-2 mb-4 text-sm">
                 {player.height_cm && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Height:</span>
-                    <span className="font-medium">{player.height_cm} cm</span>
+                    <span className="text-black">Height:</span>
+                    <span className="font-medium text-black">{player.height_cm} cm</span>
                   </div>
                 )}
                 {player.weight_kg && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Weight:</span>
-                    <span className="font-medium">{player.weight_kg} kg</span>
+                    <span className="text-black">Weight:</span>
+                    <span className="font-medium text-black">{player.weight_kg} kg</span>
                   </div>
                 )}
                 {player.date_of_birth && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">DOB:</span>
-                    <span className="font-medium">{new Date(player.date_of_birth).toLocaleDateString()}</span>
+                    <span className="text-black">DOB:</span>
+                    <span className="font-medium text-black">{new Date(player.date_of_birth).toLocaleDateString()}</span>
                   </div>
                 )}
               </div>
@@ -435,7 +441,7 @@ export default function TeamsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => openPlayerModal(player)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <Edit className="w-4 h-4" />
                   Edit
@@ -454,7 +460,7 @@ export default function TeamsPage() {
         {teamPlayers.length === 0 && (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
             <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No players in this team yet</p>
+            <p className="text-black mb-4">No players in this team yet</p>
             <button
               onClick={() => openPlayerModal()}
               className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
@@ -469,10 +475,10 @@ export default function TeamsPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-black">
                   {editingPlayer ? 'Edit Player' : 'Add New Player'}
                 </h2>
-                <button onClick={closePlayerModal} className="text-gray-400 hover:text-gray-600">
+                <button onClick={closePlayerModal} className="text-gray-400 hover:text-black">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -480,7 +486,7 @@ export default function TeamsPage() {
               <form onSubmit={handlePlayerSubmit} className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-black mb-2">
                       First Name *
                     </label>
                     <input
@@ -488,12 +494,12 @@ export default function TeamsPage() {
                       required
                       value={playerFormData.first_name}
                       onChange={(e) => setPlayerFormData({ ...playerFormData, first_name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-black mb-2">
                       Last Name *
                     </label>
                     <input
@@ -501,31 +507,31 @@ export default function TeamsPage() {
                       required
                       value={playerFormData.last_name}
                       onChange={(e) => setPlayerFormData({ ...playerFormData, last_name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-black mb-2">
                       Jersey Number
                     </label>
                     <input
                       type="number"
                       value={playerFormData.jersey_number}
                       onChange={(e) => setPlayerFormData({ ...playerFormData, jersey_number: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                       placeholder="e.g., 7"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-black mb-2">
                       Position
                     </label>
                     <select
                       value={playerFormData.position}
                       onChange={(e) => setPlayerFormData({ ...playerFormData, position: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     >
                       <option value="">Select position</option>
                       <option value="PG">Point Guard (PG)</option>
@@ -539,32 +545,32 @@ export default function TeamsPage() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-black mb-2">
                       Date of Birth
                     </label>
                     <input
                       type="date"
                       value={playerFormData.date_of_birth}
                       onChange={(e) => setPlayerFormData({ ...playerFormData, date_of_birth: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-black mb-2">
                       Height (cm)
                     </label>
                     <input
                       type="number"
                       value={playerFormData.height_cm}
                       onChange={(e) => setPlayerFormData({ ...playerFormData, height_cm: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                       placeholder="e.g., 180"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-black mb-2">
                       Weight (kg)
                     </label>
                     <input
@@ -572,7 +578,7 @@ export default function TeamsPage() {
                       step="0.1"
                       value={playerFormData.weight_kg}
                       onChange={(e) => setPlayerFormData({ ...playerFormData, weight_kg: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                       placeholder="e.g., 75.2"
                     />
                   </div>
@@ -585,7 +591,7 @@ export default function TeamsPage() {
                       onChange={(e) => setPlayerFormData({ ...playerFormData, is_active: e.target.checked })}
                       className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                     />
-                    <label htmlFor="player_is_active" className="text-sm font-medium text-gray-700">
+                    <label htmlFor="player_is_active" className="text-sm font-medium text-black">
                       Active Player
                     </label>
                   </div>
@@ -595,7 +601,7 @@ export default function TeamsPage() {
                   <button
                     type="button"
                     onClick={closePlayerModal}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>
@@ -619,8 +625,8 @@ export default function TeamsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Teams</h1>
-          <p className="text-gray-600 mt-1">Manage teams across all divisions</p>
+          <h1 className="text-3xl font-bold text-black">Teams</h1>
+          <p className="text-black mt-1">Manage teams across all divisions</p>
         </div>
         <button
           onClick={() => openModal()}
@@ -639,13 +645,13 @@ export default function TeamsPage() {
             placeholder="Search teams..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
           />
         </div>
         <select
           value={filterDivision}
           onChange={(e) => setFilterDivision(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
         >
           <option value="">All Divisions</option>
           {divisions.map((div) => (
@@ -676,15 +682,15 @@ export default function TeamsPage() {
                   </div>
                 )}
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{team.name}</h3>
-                  <p className="text-sm text-gray-600">{team.division?.name}</p>
+                  <h3 className="text-lg font-semibold text-black">{team.name}</h3>
+                  <p className="text-sm text-black">{team.division?.name}</p>
                   {team.home_city && (
-                    <p className="text-xs text-gray-500 mt-1">{team.home_city}</p>
+                    <p className="text-xs text-black mt-1">{team.home_city}</p>
                   )}
                 </div>
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    team.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                    team.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-black'
                   }`}
                 >
                   {team.is_active ? 'Active' : 'Inactive'}
@@ -694,17 +700,17 @@ export default function TeamsPage() {
               <div className="space-y-2 text-sm">
                 {team.coach_name && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Coach:</span>
-                    <span className="font-medium">{team.coach_name}</span>
+                    <span className="text-black">Coach:</span>
+                    <span className="font-medium text-black">{team.coach_name}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Record:</span>
-                  <span className="font-medium">{team.wins}W - {team.losses}L</span>
+                  <span className="text-black">Record:</span>
+                  <span className="font-medium text-black">{team.wins}W - {team.losses}L</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Points:</span>
-                  <span className="font-medium">{team.points}</span>
+                  <span className="text-black">Points:</span>
+                  <span className="font-medium text-black">{team.points}</span>
                 </div>
               </div>
             </div>
@@ -715,7 +721,7 @@ export default function TeamsPage() {
                   e.stopPropagation();
                   openModal(team);
                 }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <Edit className="w-4 h-4" />
                 Edit
@@ -737,7 +743,7 @@ export default function TeamsPage() {
       {filteredTeams.length === 0 && (
         <div className="text-center py-12">
           <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">No teams found</p>
+          <p className="text-black">No teams found</p>
         </div>
       )}
 
@@ -745,10 +751,10 @@ export default function TeamsPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-2xl font-bold text-black">
                 {editingTeam ? 'Edit Team' : 'Add New Team'}
               </h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+              <button onClick={closeModal} className="text-gray-400 hover:text-black">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -756,16 +762,16 @@ export default function TeamsPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Division *
                   </label>
                   <select
-                    required
                     value={formData.division_id}
                     onChange={(e) => setFormData({ ...formData, division_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
+                  
                   >
-                    <option value="">Select Division</option>
+                    <option value="">Select Division (Optional)</option>
                     {divisions.map((div) => (
                       <option key={div.id} value={div.id}>
                         {div.name} - {div.season}
@@ -775,7 +781,7 @@ export default function TeamsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Team Name *
                   </label>
                   <input
@@ -783,77 +789,77 @@ export default function TeamsPage() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     placeholder="e.g., Lakers"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Short Name
                   </label>
                   <input
                     type="text"
                     value={formData.short_name}
                     onChange={(e) => setFormData({ ...formData, short_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     placeholder="e.g., LAL"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Coach Name
                   </label>
                   <input
                     type="text"
                     value={formData.coach_name}
                     onChange={(e) => setFormData({ ...formData, coach_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     placeholder="Head coach name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Assistant Coach
                   </label>
                   <input
                     type="text"
                     value={formData.assistant_coach}
                     onChange={(e) => setFormData({ ...formData, assistant_coach: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     placeholder="Assistant coach name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Home City
                   </label>
                   <input
                     type="text"
                     value={formData.home_city}
                     onChange={(e) => setFormData({ ...formData, home_city: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     placeholder="e.g., Los Angeles"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Founded Year
                   </label>
                   <input
                     type="number"
                     value={formData.founded_year}
                     onChange={(e) => setFormData({ ...formData, founded_year: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Team Color
                   </label>
                   <div className="flex gap-2">
@@ -867,27 +873,27 @@ export default function TeamsPage() {
                       type="text"
                       value={formData.team_color}
                       onChange={(e) => setFormData({ ...formData, team_color: e.target.value })}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                       placeholder="#FF6B35"
                     />
                   </div>
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Logo URL
                   </label>
                   <input
                     type="url"
                     value={formData.logo_url}
                     onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                     placeholder="https://example.com/logo.png"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Wins
                   </label>
                   <input
@@ -895,12 +901,12 @@ export default function TeamsPage() {
                     min="0"
                     value={formData.wins}
                     onChange={(e) => setFormData({ ...formData, wins: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Losses
                   </label>
                   <input
@@ -908,12 +914,12 @@ export default function TeamsPage() {
                     min="0"
                     value={formData.losses}
                     onChange={(e) => setFormData({ ...formData, losses: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Points
                   </label>
                   <input
@@ -921,7 +927,7 @@ export default function TeamsPage() {
                     min="0"
                     value={formData.points}
                     onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-black"
                   />
                 </div>
 
@@ -933,7 +939,7 @@ export default function TeamsPage() {
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                     className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                   />
-                  <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
+                  <label htmlFor="is_active" className="text-sm font-medium text-black">
                     Active Team
                   </label>
                 </div>
@@ -943,7 +949,7 @@ export default function TeamsPage() {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-black rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>

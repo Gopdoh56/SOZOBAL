@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from '@/lib/supabase/Client'
+import { useRouter } from 'next/navigation'
 
 interface Match {
   id: string
@@ -19,6 +20,7 @@ export default function MiniScores() {
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
   const [activeWeek, setActiveWeek] = useState(0)
+  const router = useRouter()
 
   useEffect(() => {
     loadMatches()
@@ -66,40 +68,53 @@ export default function MiniScores() {
     setLoading(false)
   }
 
-  const getStatusDisplay = (status: string, matchDate: string) => {
-    const now = new Date()
-    const matchTime = new Date(matchDate)
+  const formatMatchDateTime = (dateString: string) => {
+    if (!dateString) return { date: '', time: '' };
     
+    const [datePart, timePart] = dateString.split('T');
+    
+    let date = '';
+    let time = '';
+    
+    if (datePart) {
+      const [year, month, day] = datePart.split('-');
+      const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      date = dateObj.toLocaleDateString('en-US', {
+        day: 'numeric',
+        month: 'short',
+      }).toUpperCase();
+    }
+    
+    if (timePart) {
+      const [hours, minutes] = timePart.split(':');
+      const hour = parseInt(hours);
+      const min = minutes || '00';
+      
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      time = `${hour12}:${min} ${period}`;
+    }
+    
+    return { date, time };
+  };
+
+  const getStatusDisplay = (status: string, matchDate: string) => {
     if (status === 'completed') return 'FINAL'
     if (status === 'live') return 'LIVE'
     if (status === 'postponed') return 'POSTPONED'
     if (status === 'cancelled') return 'CANCELLED'
     
-    if (matchTime > now) {
-      return matchTime.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true 
-      })
-    }
-    
-    return 'SCHEDULED'
+    const { date, time } = formatMatchDateTime(matchDate);
+    return time ? `${date} • ${time}` : date || 'SCHEDULED'
   }
 
   const getButtonText = (status: string, matchDate: string) => {
-    const now = new Date()
-    const matchTime = new Date(matchDate)
-    
     if (status === 'live') return '▶ LIVE'
     if (status === 'completed') return 'BOX SCORE'
     if (status === 'postponed') return 'POSTPONED'
     if (status === 'cancelled') return 'CANCELLED'
     
-    if (matchTime > now) {
-      return `▶ STARTS`
-    }
-    
-    return 'INFO'
+    return '▶ SCHEDULED'
   }
 
   const getButtonColor = (status: string) => {
@@ -107,6 +122,10 @@ export default function MiniScores() {
     if (status === 'completed') return 'text-gray-600 hover:bg-gray-100'
     if (status === 'postponed' || status === 'cancelled') return 'text-gray-400 cursor-not-allowed'
     return 'text-yellow-500 hover:bg-yellow-50'
+  }
+
+  const handleCardClick = (match: Match) => {
+    router.push(`/game_stats?id=${match.id}`)
   }
 
   const handlePrevWeek = () => setActiveWeek(activeWeek - 1)
@@ -137,11 +156,15 @@ export default function MiniScores() {
               ▲
             </button>
             <span className="text-[9px] sm:text-[10px] font-semibold text-gray-600 whitespace-pre-line leading-tight">
-              {startOfWeek.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
+              {startOfWeek.getDate()}
               <br />
               {startOfWeek.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
               <br />
-              {startOfWeek.getDate()}
+              -
+              <br />
+              {endOfWeek.getDate()}
+              <br />
+              {endOfWeek.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
             </span>
             <button 
               onClick={handleNextWeek}
@@ -158,7 +181,11 @@ export default function MiniScores() {
             </div>
           ) : (
             matches.map((match) => (
-              <div key={match.id} className="bg-white rounded-lg p-2 border border-gray-200 min-w-44 sm:min-w-48 flex-shrink-0">
+              <div 
+                key={match.id} 
+                onClick={() => handleCardClick(match)}
+                className="bg-white rounded-lg p-2 border border-gray-200 min-w-44 sm:min-w-48 flex-shrink-0 transition cursor-pointer hover:shadow-md hover:border-orange-300"
+              >
                 <div className="text-[9px] sm:text-[10px] font-bold text-gray-500 mb-1.5">
                   {getStatusDisplay(match.status, match.match_date)}
                 </div>
@@ -222,14 +249,13 @@ export default function MiniScores() {
                 </div>
 
                 {/* Action Button */}
-                <button 
+                <div 
                   className={`w-full flex items-center justify-center gap-1 sm:gap-1.5 font-semibold text-[10px] sm:text-xs py-1 sm:py-1.5 rounded transition ${
                     getButtonColor(match.status)
                   }`}
-                  disabled={match.status === 'postponed' || match.status === 'cancelled'}
                 >
                   {getButtonText(match.status, match.match_date)}
-                </button>
+                </div>
               </div>
             ))
           )}

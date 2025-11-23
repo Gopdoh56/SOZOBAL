@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from '@/lib/supabase/Client'
+import { useRouter } from 'next/navigation'
 
 interface Match {
   id: string
@@ -11,14 +12,19 @@ interface Match {
   home_score: number
   away_score: number
   status: string
+  match_type: string
+  league_name: string
+  tournament_name: string
+  custom_category: string
   home_team?: { name: string; logo_url: string }
   away_team?: { name: string; logo_url: string }
 }
 
 export default function ScoresSection() {
-  const [activeWeek, setActiveWeek] = useState(0) // 0 = current week, -1 = last week, 1 = next week
+  const [activeWeek, setActiveWeek] = useState(0)
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     loadMatches()
@@ -26,15 +32,13 @@ export default function ScoresSection() {
 
   const getWeekDates = (weekOffset: number) => {
     const today = new Date()
-    const currentDay = today.getDay() // 0 = Sunday, 1 = Monday, etc.
+    const currentDay = today.getDay()
     
-    // Calculate start of week (Monday)
     const startOfWeek = new Date(today)
     const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay
     startOfWeek.setDate(today.getDate() + daysToMonday + (weekOffset * 7))
     startOfWeek.setHours(0, 0, 0, 0)
     
-    // Calculate end of week (Sunday)
     const endOfWeek = new Date(startOfWeek)
     endOfWeek.setDate(startOfWeek.getDate() + 6)
     endOfWeek.setHours(23, 59, 59, 999)
@@ -72,7 +76,7 @@ export default function ScoresSection() {
       .gte('match_date', startOfWeek.toISOString())
       .lte('match_date', endOfWeek.toISOString())
       .order('match_date', { ascending: true })
-      .limit(3) // <--- THIS LIMITS THE RESULTS TO 3 GAMES ONLY
+      .limit(3)
 
     if (data) {
       setMatches(data)
@@ -83,42 +87,103 @@ export default function ScoresSection() {
     setLoading(false)
   }
 
-  const getStatusDisplay = (status: string, matchDate: string) => {
-    const now = new Date()
-    const matchTime = new Date(matchDate)
+  // TIMEZONE-SAFE DATE PARSING (same as Matches page)
+  const parseMatchDate = (dateString: string) => {
+    if (!dateString) return null
     
+    const [datePart, timePart] = dateString.split('T')
+    if (!datePart) return null
+    
+    const [year, month, day] = datePart.split('-')
+    
+    // Create date without timezone conversion
+    return {
+      year: parseInt(year),
+      month: parseInt(month),
+      day: parseInt(day),
+      datePart,
+      timePart: timePart || ''
+    }
+  }
+
+  const formatMatchDateTime = (dateString: string) => {
+    const parsed = parseMatchDate(dateString)
+    if (!parsed) return { dayOfWeek: '', dateStr: '', timeStr: '' }
+    
+    const date = new Date(parsed.year, parsed.month - 1, parsed.day)
+    
+    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' })
+    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    
+    let timeStr = ''
+    if (parsed.timePart) {
+      const [hours, minutes] = parsed.timePart.split(':')
+      const hour = parseInt(hours)
+      const min = minutes || '00'
+      
+      const period = hour >= 12 ? 'PM' : 'AM'
+      const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+      timeStr = `${hour12}:${min} ${period}`
+    }
+    
+    return { dayOfWeek, dateStr, timeStr }
+  }
+
+  const getMatchCategory = (match: Match) => {
+    switch (match.match_type) {
+      case 'friendly':
+        return 'Friendly Match'
+      case 'league':
+        return match.league_name || 'League Game'
+      case 'tournament':
+        return match.tournament_name || 'Tournament'
+      case 'custom':
+        return match.custom_category || 'Custom Match'
+      default:
+        return 'Match'
+    }
+  }
+
+  const getMatchTypeColor = (type: string) => {
+    switch (type) {
+      case 'friendly': 
+        return 'bg-blue-100 text-blue-700'
+      case 'league': 
+        return 'bg-purple-100 text-purple-700'
+      case 'tournament': 
+        return 'bg-amber-100 text-amber-700'
+      case 'custom': 
+        return 'bg-teal-100 text-teal-700'
+      default: 
+        return 'bg-gray-100 text-gray-700'
+    }
+  }
+
+  const getStatusDisplay = (status: string, matchDate: string) => {
     if (status === 'completed') return 'FINAL'
     if (status === 'live') return 'LIVE'
     if (status === 'postponed') return 'POSTPONED'
     if (status === 'cancelled') return 'CANCELLED'
     
     // For scheduled matches, show time
-    if (matchTime > now) {
-      return matchTime.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true 
-      })
+    const { timeStr } = formatMatchDateTime(matchDate)
+    if (timeStr) {
+      return timeStr
     }
     
     return 'SCHEDULED'
   }
 
   const getButtonText = (status: string, matchDate: string) => {
-    const now = new Date()
-    const matchTime = new Date(matchDate)
-    
     if (status === 'live') return '▶ WATCH LIVE'
     if (status === 'completed') return 'VIEW BOX SCORE'
     if (status === 'postponed') return 'POSTPONED'
     if (status === 'cancelled') return 'CANCELLED'
     
-    if (matchTime > now) {
-      return `▶ GAME STARTS ${matchTime.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true 
-      })}`
+    // For scheduled matches
+    const { timeStr } = formatMatchDateTime(matchDate)
+    if (timeStr) {
+      return `▶ GAME STARTS ${timeStr}`
     }
     
     return 'GAME INFO'
@@ -132,7 +197,6 @@ export default function ScoresSection() {
   }
 
   const getTeamCode = (teamName: string) => {
-    // Extract first 3 letters or create abbreviation
     if (!teamName) return 'TBD'
     
     const words = teamName.split(' ')
@@ -140,6 +204,10 @@ export default function ScoresSection() {
       return words.map(w => w[0]).join('').toUpperCase().slice(0, 3)
     }
     return teamName.slice(0, 3).toUpperCase()
+  }
+
+  const handleCardClick = (match: Match) => {
+    router.push(`/game_stats?id=${match.id}`)
   }
 
   if (loading) {
@@ -189,19 +257,26 @@ export default function ScoresSection() {
           </div>
         ) : (
           matches.map((match) => {
-            const matchDate = new Date(match.match_date)
-            const dayOfWeek = matchDate.toLocaleDateString('en-US', { weekday: 'long' })
-            const dateStr = matchDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            const { dayOfWeek, dateStr } = formatMatchDateTime(match.match_date)
             
             return (
-              <div key={match.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition">
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`text-xs font-bold px-2 py-1 rounded-full ${
-                    match.status === 'live' ? 'bg-red-100 text-red-700' :
-                    match.status === 'completed' ? 'bg-gray-100 text-gray-700' :
-                    'bg-blue-100 text-blue-700'
-                  }`}>
-                    {getStatusDisplay(match.status, match.match_date)}
+              <div 
+                key={match.id} 
+                onClick={() => handleCardClick(match)}
+                className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md hover:border-orange-300 transition cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`text-xs font-bold px-2 py-1 rounded-full ${
+                      match.status === 'live' ? 'bg-red-100 text-red-700' :
+                      match.status === 'completed' ? 'bg-gray-100 text-gray-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {getStatusDisplay(match.status, match.match_date)}
+                    </div>
+                    <div className={`text-xs font-bold px-2 py-1 rounded-full ${getMatchTypeColor(match.match_type)}`}>
+                      {getMatchCategory(match)}
+                    </div>
                   </div>
                   <div className="text-xs font-medium text-gray-500">
                     {dayOfWeek}, {dateStr}
@@ -266,14 +341,13 @@ export default function ScoresSection() {
                   </div>
                 </div>
 
-                <button 
+                <div 
                   className={`w-full flex items-center justify-center gap-2 font-semibold py-2 text-sm rounded-lg transition ${
                     getButtonColor(match.status)
                   }`}
-                  disabled={match.status === 'postponed' || match.status === 'cancelled'}
                 >
                   {getButtonText(match.status, match.match_date)}
-                </button>
+                </div>
               </div>
             )
           })

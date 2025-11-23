@@ -71,11 +71,13 @@ export default function StandingsSection() {
       .select('*')
       .eq('is_active', true)
 
-    // Load completed matches
+    // Load completed matches - ONLY league games with league_name = 'sozobal'
     const { data: matchesData } = await supabase
       .from('matches')
       .select('*')
       .eq('status', 'completed')
+      .eq('match_type', 'league')
+      .ilike('league_name', 'sozobal')
 
     // Load match scores (to get winning team)
     const { data: matchScoresData } = await supabase
