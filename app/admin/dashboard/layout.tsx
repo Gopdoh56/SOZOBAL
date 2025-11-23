@@ -36,6 +36,7 @@ const navigation: NavItem[] = [
   { name: 'Venues', href: '/admin/dashboard/venues', icon: MapPin },
   { name: 'News', href: '/admin/dashboard/news', icon: Newspaper },
   { name: 'hero', href: '/admin/dashboard/hero', icon: Newspaper },
+  { name: 'featured', href: '/admin/dashboard/featured', icon: Newspaper },
   { name: 'Settings', href: '/admin/dashboard/settings', icon: Settings },
 ];
 
